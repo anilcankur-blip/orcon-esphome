@@ -10,6 +10,15 @@ static const char *TAG = "orcon";
 static bool init_attempted = false;
 static bool init_ok = false;
 
+// Keep each fan command as a dedicated function so the button action
+// only dispatches the selected command.
+static void modeAway()  { orcon::setMode(orcon::Mode::Away); }
+static void mode1()     { orcon::setMode(orcon::Mode::Low); }
+static void mode2()     { orcon::setMode(orcon::Mode::Medium); }
+static void mode3()     { orcon::setMode(orcon::Mode::High); }
+static void modeAuto()  { orcon::setMode(orcon::Mode::Auto); }
+static void modeBoost() { orcon::setMode(orcon::Mode::Boost); }
+
 void OrconPairButton::setup() {
   if (!init_attempted) {
     init_attempted = true;
@@ -52,12 +61,12 @@ void OrconPairButton::press_action() {
     return;
   }
 
-  if (mode_ == "Away") orcon::setMode(orcon::Mode::Away);
-  else if (mode_ == "1") orcon::setMode(orcon::Mode::Low);
-  else if (mode_ == "2") orcon::setMode(orcon::Mode::Medium);
-  else if (mode_ == "3") orcon::setMode(orcon::Mode::High);
-  else if (mode_ == "Auto") orcon::setMode(orcon::Mode::Auto);
-  else if (mode_ == "Boost") orcon::setMode(orcon::Mode::Boost);
+  if (mode_ == "Away") modeAway();
+  else if (mode_ == "1") mode1();
+  else if (mode_ == "2") mode2();
+  else if (mode_ == "3") mode3();
+  else if (mode_ == "Auto") modeAuto();
+  else if (mode_ == "Boost") modeBoost();
 }
 
 void OrconPairButton::loop() {
