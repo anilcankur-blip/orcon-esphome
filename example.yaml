@@ -1,0 +1,35 @@
+esphome:
+  name: havalandirma
+  friendly_name: Havalandırma
+  min_version: 2026.4.0
+  name_add_mac_suffix: false
+
+esp32:
+  variant: esp32
+  framework:
+    type: arduino
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+fan:
+  - platform: orcon
+    name: "Havalandırması MVS-15"
+    restore_mode: ALWAYS_OFF
+
+button:
+  - platform: orcon
+    name: "Orcon Eşleştirmeyi Başlat"
