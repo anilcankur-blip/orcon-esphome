@@ -9,7 +9,7 @@
 
 namespace cc1101tx {
 
-static HardwareSerial ccUart(1);
+static OrconUart ccUart(1);
 static spi_device_handle_t ccDevice = nullptr;
 static bool g_spiReady = false;
 
@@ -65,7 +65,7 @@ bool begin() {
 
         esp_err_t busErr = spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_DISABLED);
         if (busErr != ESP_OK && busErr != ESP_ERR_INVALID_STATE) {
-            Serial.printf("[cc1101] SPI bus init failed: %d\n", (int)busErr);
+            OrconSerial.printf("[cc1101] SPI bus init failed: %d\n", (int)busErr);
             return false;
         }
 
@@ -76,7 +76,7 @@ bool begin() {
         devcfg.queue_size = 1;
         esp_err_t devErr = spi_bus_add_device(SPI3_HOST, &devcfg, &ccDevice);
         if (devErr != ESP_OK) {
-            Serial.printf("[cc1101] SPI device init failed: %d\n", (int)devErr);
+            OrconSerial.printf("[cc1101] SPI device init failed: %d\n", (int)devErr);
             return false;
         }
         g_spiReady = true;
@@ -94,7 +94,7 @@ bool begin() {
         delay(10);
     }
 
-    Serial.printf("[cc1101] version=0x%02X (expect ~0x14)\n", g_ver);
+    OrconSerial.printf("[cc1101] version=0x%02X (expect ~0x14)\n", g_ver);
     ccUart.setRxBufferSize(8192);
     ccUart.begin(38400, SERIAL_8N1, PIN_CC_GDO2, PIN_CC_GDO0);
     return (g_ver != 0x00 && g_ver != 0xFF);
