@@ -40,7 +40,7 @@ const char* name() { return "SX1262"; }
 static bool configure() {
     int st = g_radio.beginFSK(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
                               RF_RXBW_KHZ, 10 /*dBm*/, 16 /*preamble bits*/);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] beginFSK=%d\n", st); return false; }
+    if (st != RADIOLIB_ERR_NONE) { OrconSerial.printf("[radio] beginFSK=%d\n", st); return false; }
     // Heltec V3/V4: the antenna is connected to the SX1262 through an RF switch
     // driven by DIO2. Without this, the receiver is electrically disconnected
     // from the antenna -> dead-flat ~-112 dBm RSSI no matter the antenna. REQUIRED.
@@ -85,7 +85,7 @@ bool sendFrame(const ramses::Frame& f) {
     g_radio.setSyncWord(g_syncWord, sizeof(g_syncWord));
     g_radio.fixedPacketLengthMode(RX_WINDOW);
     startReceive();
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] tx=%d\n", st); return false; }
+    if (st != RADIOLIB_ERR_NONE) { OrconSerial.printf("[radio] tx=%d\n", st); return false; }
     return true;
 #endif
 }
@@ -101,9 +101,9 @@ bool poll(ramses::Frame& out) {
     bool ok = ramses::decodeFrame(buf, RX_WINDOW, RX_WINDOW * 8, out);
 #if DEBUG_RX_HEX
     if (ok) {
-        Serial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
-        for (uint8_t i = 0; i < out.len; i++) Serial.printf("%02X", out.payload[i]);
-        Serial.println();
+        OrconSerial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
+        for (uint8_t i = 0; i < out.len; i++) OrconSerial.printf("%02X", out.payload[i]);
+        OrconSerial.println();
     }
 #endif
     return ok;
@@ -124,7 +124,7 @@ const char* name() { return "CC1101"; }
 static bool configure() {
     int st = g_radio.begin(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
                            RF_RXBW_KHZ, 10 /*dBm*/, RF_PREAMBLE_BYTES);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] cc begin=%d\n", st); return false; }
+    if (st != RADIOLIB_ERR_NONE) { OrconSerial.printf("[radio] cc begin=%d\n", st); return false; }
     g_radio.setSyncWord(0x55, 0x53);
     g_radio.setCrcFiltering(false);
     g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
@@ -181,7 +181,7 @@ bool poll(ramses::Frame& out) {
     const uint32_t now = millis();
     if (now - lastDiagMs >= 10000UL) {
         lastDiagMs = now;
-        Serial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\n",
+        OrconSerial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\n",
                       (unsigned long)cc1101tx::uartBytes(), cc1101tx::rssiDbm());
     }
 
@@ -189,9 +189,9 @@ bool poll(ramses::Frame& out) {
     if (ok) {
         g_rssi = (float)cc1101tx::rssiDbm();
 #if DEBUG_RX_HEX
-        Serial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
-        for (uint8_t i = 0; i < out.len; i++) Serial.printf("%02X", out.payload[i]);
-        Serial.println();
+        OrconSerial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
+        for (uint8_t i = 0; i < out.len; i++) OrconSerial.printf("%02X", out.payload[i]);
+        OrconSerial.println();
 #endif
     }
     return ok;
@@ -220,7 +220,7 @@ const char* name() { return "SX1276 direct RX + packet TX"; }
 static bool configure() {
     int st = g_radio.beginFSK(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
                               RF_RXBW_KHZ, 17 /*dBm*/, 16 /*preamble bits*/);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] sx1276 beginFSK=%d\n", st); return false; }
+    if (st != RADIOLIB_ERR_NONE) { OrconSerial.printf("[radio] sx1276 beginFSK=%d\n", st); return false; }
     g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
     g_radio.setDataShaping(RADIOLIB_SHAPING_NONE);
     g_radio.setCRC(false);
@@ -252,7 +252,7 @@ bool sendFrame(const ramses::Frame& f) {
     g_radio.fixedPacketLengthMode((uint8_t)n);
     int st = g_radio.transmit(g_onair, n);
     startReceive();                           // straight back to listening
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] sx1276 tx=%d\n", st); return false; }
+    if (st != RADIOLIB_ERR_NONE) { OrconSerial.printf("[radio] sx1276 tx=%d\n", st); return false; }
     return true;
 }
 
