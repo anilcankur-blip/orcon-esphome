@@ -27,10 +27,16 @@ external_components:
       ref: main
     components: [orcon]
 
-fan:
+select:
   - platform: orcon
-    name: "Orcon MVS-15"
-    restore_mode: ALWAYS_OFF
+    name: "Orcon Modu"
+    options:
+      - Away
+      - "1"
+      - "2"
+      - "3"
+      - Auto
+      - Boost
 
 button:
   - platform: orcon
