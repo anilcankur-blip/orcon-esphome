@@ -18,3 +18,5 @@ async def to_code(config):
     if CONF_MODE in config:
         cg.add(var.set_mode(config[CONF_MODE]))
     await cg.register_component(var, config)
+    cg.add_build_flag("-DRADIO_CC1101_ASYNC=1")
+    cg.add_build_flag("-DBOARD_GENERIC_ESPHOME=1")
