@@ -38,10 +38,10 @@ class HardwareSerial {
     cfg.stop_bits = UART_STOP_BITS_1;
     cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     cfg.rx_flow_ctrl_thresh = 0;
-    esp_err_t e = uart_param_config(port_, &cfg);
-    if (e != ESP_OK) { ::printf("[orcon] uart_param_config failed: %d\n", (int)e); return; }
-    e = uart_driver_install(port_, (int)(rx_buffer_size_ ? rx_buffer_size_ : 2048), 0, 0, nullptr, 0);
+    esp_err_t e = uart_driver_install(port_, (int)(rx_buffer_size_ ? rx_buffer_size_ : 2048), 0, 0, nullptr, 0);
     if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) { ::printf("[orcon] uart_driver_install failed: %d\n", (int)e); return; }
+    e = uart_param_config(port_, &cfg);
+    if (e != ESP_OK) { ::printf("[orcon] uart_param_config failed: %d\n", (int)e); return; }
     e = uart_set_pin(port_, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     if (e != ESP_OK) { ::printf("[orcon] uart_set_pin failed: %d\n", (int)e); return; }
     (void)uart_flush_input(port_);
