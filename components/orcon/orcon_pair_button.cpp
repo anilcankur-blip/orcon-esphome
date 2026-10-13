@@ -17,6 +17,7 @@ void OrconPairButton::setup() {
     uint8_t mac[6];
     if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) {
       ESP_LOGE(TAG, "Failed to read ESP32 MAC address");
+      this->mark_failed();
       return;
     }
 
@@ -26,6 +27,7 @@ void OrconPairButton::setup() {
 
     if (!radio::begin()) {
       ESP_LOGE(TAG, "CC1101 initialization failed");
+      this->mark_failed();
       return;
     }
 
