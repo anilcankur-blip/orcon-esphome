@@ -12,4 +12,3 @@ async def to_code(config):
     await cg.register_component(var, config)
     cg.add_build_flag("-DRADIO_CC1101_ASYNC=1")
     cg.add_build_flag("-DBOARD_GENERIC_ESPHOME=1")
-    cg.add_library("jgromes/RadioLib", "7.1.0")

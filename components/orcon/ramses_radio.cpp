@@ -2,7 +2,9 @@
 #include "ramses_radio.h"
 #include "config.h"
 #include <Arduino.h>
+#if defined(RADIO_SX1262) || defined(RADIO_CC1101) || defined(RADIO_SX1276)
 #include <RadioLib.h>
+#endif
 #if defined(USE_CC1101_TX) || defined(RADIO_CC1101_ASYNC)
 #include "cc1101_tx.h"
 #endif

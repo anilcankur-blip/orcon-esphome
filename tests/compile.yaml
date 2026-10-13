@@ -1,0 +1,32 @@
+esphome:
+  name: orcon-ci-test
+  friendly_name: Orcon CI Test
+  min_version: 2026.4.0
+
+esp32:
+  variant: esp32
+  framework:
+    type: arduino
+
+logger:
+api:
+ota:
+  - platform: esphome
+wifi:
+  ssid: "test-ssid"
+  password: "test-password"
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [orcon]
+
+fan:
+  - platform: orcon
+    name: "Orcon MVS-15"
+    restore_mode: ALWAYS_OFF
+
+button:
+  - platform: orcon
+    name: "Orcon Eşleştirmeyi Başlat"

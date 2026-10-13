@@ -22,12 +22,14 @@ wifi:
 
 external_components:
   - source:
-      type: local
-      path: components
+      type: git
+      url: https://github.com/anilcankur-blip/orcon-esphome
+      ref: main
+    components: [orcon]
 
 fan:
   - platform: orcon
-    name: "Havalandırması MVS-15"
+    name: "Orcon MVS-15"
     restore_mode: ALWAYS_OFF
 
 button:
