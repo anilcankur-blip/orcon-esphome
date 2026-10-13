@@ -22,11 +22,17 @@ external_components:
       path: ../components
     components: [orcon]
 
-fan:
+select:
   - platform: orcon
-    name: "Orcon MVS-15"
-    restore_mode: ALWAYS_OFF
+    name: "Orcon Mode"
+    options:
+      - Away
+      - "1"
+      - "2"
+      - "3"
+      - Auto
+      - Boost
 
 button:
   - platform: orcon
-    name: "Orcon Eşleştirmeyi Başlat"
+    name: "Orcon Pairing"
