@@ -33,7 +33,7 @@ external_components:
     components: [orcon]
 ```
 
-The component exposes an ESPHome fan entity and a pairing button.
+The component exposes an Orcon mode select (Away, 1, 2, 3, Auto, Boost) and a pairing button. It intentionally does not expose a generic fan ON/OFF switch: Away is a real operating mode, not proof that the ventilation unit is powered off. The selected mode is updated from received fan telemetry; sending a command alone is not treated as confirmation.
 
 ## Pairing and testing
 
@@ -51,4 +51,5 @@ The GitHub Actions workflow validates and compiles `tests/compile.yaml`, which p
 
 - Physical RF communication has not yet been verified.
 - Pairing identity persistence must be confirmed in code and on hardware; do not assume pairing survives a restart until tested.
+- Additional protocol features (timed boost, bypass, AC/custom fan settings, telemetry sensors, and keeper settings) still need ESPHome entities.
 - Different Orcon models may behave differently.
