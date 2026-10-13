@@ -47,9 +47,7 @@ void OrconModeSelect::publish_orcon_state_() {
 
   // Publish only a mode reported by the fan; never treat a transmitted
   // command as proof that the physical unit accepted it.
-  if (name != nullptr && this->has_state() == false) {
-    this->publish_state(name);
-  } else if (name != nullptr && this->current_option() != name) {
+  if (name != nullptr && this->current_option() != name) {
     this->publish_state(name);
   }
 }
