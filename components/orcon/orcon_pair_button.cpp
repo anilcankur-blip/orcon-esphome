@@ -13,6 +13,7 @@ static bool init_ok = false;
 void OrconPairButton::setup() {
   if (!init_attempted) {
     init_attempted = true;
+    this->radio_owner_ = true;
     uint8_t mac[6];
     if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) {
       ESP_LOGE(TAG, "Failed to read ESP32 MAC address");
@@ -57,8 +58,8 @@ void OrconPairButton::press_action() {
   else if (mode_ == "Boost") orcon::setMode(orcon::Mode::Boost);
 }
 
-void loop() {
-  if (!init_ok) return;
+void OrconPairButton::loop() {
+  if (!radio_owner_ || !init_ok) return;
   ramses::Frame frame;
   if (radio::poll(frame)) orcon::onFrame(frame);
   orcon::tick(millis());
