@@ -27,7 +27,7 @@ static OrconLogSerial Serial;
 
 class HardwareSerial {
  public:
-  explicit HardwareSerial(uart_port_t port) : port_(port) {}
+  explicit HardwareSerial(int port) : port_((uart_port_t)port) {}
   size_t setRxBufferSize(size_t size) { rx_buffer_size_ = size; return size; }
 
   void begin(unsigned long baud, int, int rx_pin, int tx_pin) {
