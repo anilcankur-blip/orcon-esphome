@@ -1,13 +1,14 @@
-aW1wb3J0IGVzcGhvbWUuY29kZWdlbiBhcyBjZwppbXBvcnQgZXNwaG9tZS5j
-b25maWdfdmFsaWRhdGlvbiBhcyBjdgpmcm9tIGVzcGhvbWUuY29tcG9uZW50
-cyBpbXBvcnQgZmFuCgpvcmNvbl9ucyA9IGNnLmVzcGhvbWVfbnMubmFtZXNw
-YWNlKCJvcmNvbl9lc3Bob21lIikKT3Jjb25GYW4gPSBvcmNvbl9ucy5jbGFz
-c18oIk9yY29uRmFuIiwgZmFuLkZhbiwgY2cuQ29tcG9uZW50KQoKQ09ORklH
-X1NDSEVNQSA9IGZhbi5mYW5fc2NoZW1hKE9yY29uRmFuKS5leHRlbmQoY3Yu
-Q09NUE9ORU5UX1NDSEVNQSkKCmFzeW5jIGRlZiB0b19jb2RlKGNvbmZpZyk6
-CiAgICB2YXIgPSBhd2FpdCBmYW4ubmV3X2Zhbihjb25maWcpCiAgICBhd2Fp
-dCBjZy5yZWdpc3Rlcl9jb21wb25lbnQodmFyLCBjb25maWcpCiAgICBjZy5h
-ZGRfYnVpbGRfZmxhZygiLURSQURJT19DQzExMDFfQVNZTkM9MSIpCiAgICBj
-Zy5hZGRfYnVpbGRfZmxhZygiLURCT0FSRF9HRU5FUklDX0VTUEhPTUU9MSIp
-CiAgICBjZy5hZGRfbGlicmFyeSgiamdyb21lcy9SYWRpb0xpYiIsICI3LjEu
-MCIpCg==
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import fan
+
+orcon_ns = cg.esphome_ns.namespace("orcon_esphome")
+OrconFan = orcon_ns.class_("OrconFan", fan.Fan, cg.Component)
+
+CONFIG_SCHEMA = fan.fan_schema(OrconFan).extend(cv.COMPONENT_SCHEMA)
+
+async def to_code(config):
+    var = await fan.new_fan(config)
+    await cg.register_component(var, config)
+    cg.add_build_flag("-DRADIO_CC1101_ASYNC=1")
+    cg.add_build_flag("-DBOARD_GENERIC_ESPHOME=1")
