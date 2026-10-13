@@ -27,17 +27,24 @@ external_components:
       ref: main
     components: [orcon]
 
-select:
-  - platform: orcon
-    name: "Orcon Modu"
-    options:
-      - Away
-      - "1"
-      - "2"
-      - "3"
-      - Auto
-      - Boost
-
 button:
+  - platform: orcon
+    name: "Orcon Away"
+    mode: Away
+  - platform: orcon
+    name: "Orcon 1"
+    mode: "1"
+  - platform: orcon
+    name: "Orcon 2"
+    mode: "2"
+  - platform: orcon
+    name: "Orcon 3"
+    mode: "3"
+  - platform: orcon
+    name: "Orcon Auto"
+    mode: Auto
+  - platform: orcon
+    name: "Orcon Boost"
+    mode: Boost
   - platform: orcon
     name: "Orcon Eşleştirmeyi Başlat"
