@@ -1,7 +1,7 @@
 #include "orcon_fan.h"
 #include "ramses_radio.h"
 #include "orcon.h"
-#include <Arduino.h>
+#include "orcon_compat.h"
 #include <string.h>
 
 namespace esphome::orcon_esphome {
