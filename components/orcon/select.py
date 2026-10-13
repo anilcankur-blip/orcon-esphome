@@ -10,7 +10,6 @@ ORCON_MODES = ["Away", "1", "2", "3", "Auto", "Boost"]
 
 CONFIG_SCHEMA = select.select_schema(
     OrconModeSelect,
-    entity_category=None,
 ).extend(cv.COMPONENT_SCHEMA).extend({
     cv.Required(CONF_OPTIONS): cv.All(
         cv.ensure_list(cv.one_of(*ORCON_MODES, lower=False)), cv.Length(min=1)
