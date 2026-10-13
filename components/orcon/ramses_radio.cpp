@@ -177,8 +177,23 @@ bool sendFrame(const ramses::Frame& f) {
     return ok;
 }
 bool poll(ramses::Frame& out) {
+    static uint32_t lastDiagMs = 0;
+    const uint32_t now = millis();
+    if (now - lastDiagMs >= 10000UL) {
+        lastDiagMs = now;
+        Serial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\\n",
+                      (unsigned long)cc1101tx::uartBytes(), cc1101tx::rssiDbm());
+    }
+
     bool ok = cc1101tx::poll(out);
-    g_rssi = (float)cc1101tx::rssiDbm();
+    if (ok) {
+        g_rssi = (float)cc1101tx::rssiDbm();
+#if DEBUG_RX_HEX
+        Serial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
+        for (uint8_t i = 0; i < out.len; i++) Serial.printf("%02X", out.payload[i]);
+        Serial.println();
+#endif
+    }
     return ok;
 }
 #endif // RADIO_CC1101_ASYNC
