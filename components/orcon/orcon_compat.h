@@ -23,11 +23,11 @@ class OrconLogSerial {
   int printf(const char *format, Args... args) { return ::printf(format, args...); }
   void println() { ::printf("\n"); }
 };
-static OrconLogSerial Serial;
+static OrconLogSerial OrconSerial;
 
-class HardwareSerial {
+class OrconUart {
  public:
-  explicit HardwareSerial(int port) : port_((uart_port_t)port) {}
+  explicit OrconUart(int port) : port_((uart_port_t)port) {}
   size_t setRxBufferSize(size_t size) { rx_buffer_size_ = size; return size; }
 
   void begin(unsigned long baud, int, int rx_pin, int tx_pin) {
