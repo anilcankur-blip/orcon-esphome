@@ -1,31 +1,54 @@
-# Orcon 15RF ESPHome adapter
+# Orcon 15RF ESPHome external component
 
-This package contains the ESPHome adapter layer for
-`me-processware/orcon-15rf-controller`.
+ESPHome external component adapter for an Orcon 15RF / compatible ventilation unit using an ESP32 and external CC1101 radio.
 
-The original project is a PlatformIO application, not an ESPHome external
-component. The RF/protocol source therefore has to be vendored into the
-component directory before ESPHome Builder can compile it.
+## Status
 
-The original project documents CC1101 async RX+TX as its working path:
-CC1101 GDO0 is the UART TX/data-in line and GDO2 is the UART RX/data-out line,
-using 38400 8N1 framing. It uses 868.3 MHz, 38.4 kbps and about 50.78 kHz
-deviation. See the original repository and its source for those settings.
+This repository is under development. A successful GitHub Actions build validates compilation only; it does not prove that RF communication with a physical Orcon unit works. Do not rely on the component until the RF receive, pairing, and command path have been tested on the target hardware.
 
-Hardware used here:
-SCK GPIO18, MOSI GPIO23, MISO GPIO19, CSN GPIO5, GDO0 GPIO2, GDO2 GPIO4.
+## Hardware wiring
 
-IMPORTANT:
-I cannot push files into your GitHub account from this chat. Also, the current
-web runtime can open the individual source files but cannot export the complete
-GitHub src tree as a local checkout. Therefore this package is intentionally a
-verified adapter layer plus a vendor script, not a claim that it is already a
-complete flash-ready GitHub repository.
+| CC1101 | ESP32 |
+| --- | --- |
+| SCK | GPIO18 |
+| MOSI | GPIO23 |
+| MISO | GPIO19 |
+| CSN / CS | GPIO5 |
+| GDO0 | GPIO2 |
+| GDO2 | GPIO4 |
+| VCC / GND | Use the module's supported supply and common ground |
 
-The ESPHome configuration exposes a fan entity with Away / Low / Medium / High /
-Auto / Boost presets and a pairing button. To pair: press the pairing button in
-Home Assistant, then power-cycle the Orcon unit within the three-minute pairing
-window. Confirm actual reception and control before relying on it.
+The radio code uses 868.3 MHz and 38400 baud asynchronous RX/TX. Check the wiring and module voltage requirements before powering the board.
 
-Do not flash this adapter until ESPHome Builder shows a successful compile.
-This package has not yet been compiled in the user's ESPHome environment.
+## Install from ESPHome Builder
+
+Copy `example.yaml` into your ESPHome configuration, set your Wi-Fi secrets, and change the device name if needed. The example loads this component directly from GitHub:
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/anilcankur-blip/orcon-esphome
+      ref: main
+    components: [orcon]
+```
+
+The component exposes an ESPHome fan entity and a pairing button.
+
+## Pairing and testing
+
+1. Compile the YAML in ESPHome Builder first.
+2. If compilation succeeds, install it on the ESP32.
+3. Open the device logs and verify that the CC1101 VERSION register is read as a plausible value (typically around `0x14`).
+4. Start pairing from the Home Assistant button, then power-cycle the Orcon unit within the three-minute pairing window.
+5. Verify that frames are received and that a fan-mode command gets a response before treating the setup as working.
+
+## Development / CI
+
+The GitHub Actions workflow validates and compiles `tests/compile.yaml`, which points to the local component directory. The user-facing `example.yaml` uses the GitHub external-component source. This allows changes to be tested before merging into `main`.
+
+## Known limitations
+
+- Physical RF communication has not yet been verified.
+- Pairing identity persistence must be confirmed in code and on hardware; do not assume pairing survives a restart until tested.
+- Different Orcon models may behave differently.
