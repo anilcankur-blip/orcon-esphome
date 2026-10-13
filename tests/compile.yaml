@@ -19,7 +19,7 @@ wifi:
 external_components:
   - source:
       type: local
-      path: components
+      path: ../components
     components: [orcon]
 
 fan:
