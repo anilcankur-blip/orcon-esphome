@@ -3,7 +3,7 @@
 #include "ramses_radio.h"
 #include "orcon_log.h"
 #include "config.h"
-#include <Arduino.h>
+#include "orcon_compat.h"
 #include <string.h>
 
 namespace orcon {
