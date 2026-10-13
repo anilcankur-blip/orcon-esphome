@@ -30,6 +30,11 @@ void OrconModeSelect::setup() {
   radio::startReceive();
   ESP_LOGI(TAG, "CC1101 Orcon transport ready, controller serial=%06lX",
            (unsigned long) us_serial);
+
+  // This select is a remote-control command, not a feedback-only sensor.
+  // Start available with a sensible default; later received fan telemetry can
+  // correct the displayed mode if the unit actually reports one.
+  this->publish_state("Auto");
 }
 
 void OrconModeSelect::publish_orcon_state_() {
@@ -45,8 +50,8 @@ void OrconModeSelect::publish_orcon_state_() {
     default: break;
   }
 
-  // Publish only a mode reported by the fan; never treat a transmitted
-  // command as proof that the physical unit accepted it.
+  // If the fan does report its mode, let that feedback correct our displayed
+  // command state. Feedback is optional for normal remote-control operation.
   if (name != nullptr && this->current_option() != name) {
     this->publish_state(name);
   }
@@ -72,7 +77,8 @@ void OrconModeSelect::control(const std::string &value) {
   else if (value == "Boost") mode = orcon::Mode::Boost;
 
   if (mode != orcon::Mode::Unknown) {
-    // State will update when the ventilation unit reports its actual mode.
+    // Show the requested command immediately; the fan may not send feedback.
+    this->publish_state(value);
     orcon::setMode(mode);
   }
 }
