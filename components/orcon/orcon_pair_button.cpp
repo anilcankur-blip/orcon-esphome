@@ -10,8 +10,7 @@ static const char *TAG = "orcon";
 static bool init_attempted = false;
 static bool init_ok = false;
 
-// Keep each fan command as a dedicated function so the button action
-// only dispatches the selected command.
+// Each entity name maps directly to its command; YAML needs no mode parameter.
 static void modeAway()  { orcon::setMode(orcon::Mode::Away); }
 static void mode1()     { orcon::setMode(orcon::Mode::Low); }
 static void mode2()     { orcon::setMode(orcon::Mode::Medium); }
@@ -56,17 +55,24 @@ void OrconPairButton::press_action() {
     return;
   }
 
-  if (mode_.empty()) {
+  const std::string &name = this->get_name();
+  if (name == "Orcon Eşleştirmeyi Başlat" || name == "Orcon Pairing") {
     orcon::startPairing();
-    return;
+  } else if (name == "Orcon Away") {
+    modeAway();
+  } else if (name == "Orcon 1") {
+    mode1();
+  } else if (name == "Orcon 2") {
+    mode2();
+  } else if (name == "Orcon 3") {
+    mode3();
+  } else if (name == "Orcon Auto") {
+    modeAuto();
+  } else if (name == "Orcon Boost") {
+    modeBoost();
+  } else {
+    ESP_LOGW(TAG, "No command mapped for button name: %s", name.c_str());
   }
-
-  if (mode_ == "Away") modeAway();
-  else if (mode_ == "1") mode1();
-  else if (mode_ == "2") mode2();
-  else if (mode_ == "3") mode3();
-  else if (mode_ == "Auto") modeAuto();
-  else if (mode_ == "Boost") modeBoost();
 }
 
 void OrconPairButton::loop() {
