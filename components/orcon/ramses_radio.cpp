@@ -1,7 +1,7 @@
 // ramses_radio.cpp — see ramses_radio.h
 #include "ramses_radio.h"
 #include "config.h"
-#include <Arduino.h>
+#include "orcon_compat.h"
 #if defined(RADIO_SX1262) || defined(RADIO_CC1101) || defined(RADIO_SX1276)
 #include <RadioLib.h>
 #endif
