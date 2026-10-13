@@ -181,7 +181,7 @@ bool poll(ramses::Frame& out) {
     const uint32_t now = millis();
     if (now - lastDiagMs >= 10000UL) {
         lastDiagMs = now;
-        Serial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\\n",
+        Serial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\n",
                       (unsigned long)cc1101tx::uartBytes(), cc1101tx::rssiDbm());
     }
 
