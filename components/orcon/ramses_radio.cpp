@@ -1,262 +1,215 @@
-// ramses_radio.cpp — see ramses_radio.h
-#include "ramses_radio.h"
-#include "config.h"
-#include <Arduino.h>
-#include <RadioLib.h>
-#if defined(USE_CC1101_TX) || defined(RADIO_CC1101_ASYNC)
-#include "cc1101_tx.h"
-#endif
-
-namespace radio {
-
-static volatile bool   g_rxFlag = false;
-static float           g_rssi   = -127.0f;
-static uint8_t         g_onair[ramses::MAX_ONAIR];
-
-#if defined(ESP32)
-IRAM_ATTR
-#endif
-static void onDio() { g_rxFlag = true; }
-
-// ===========================================================================
-//  SX1262 back-end (built-in Heltec radio). RX always; TX via SX1262 unless
-//  USE_CC1101_TX is set, in which case an external CC1101 does the transmit.
-// ===========================================================================
-#if defined(RADIO_SX1262)
-
-static SX1262 g_radio = new Module(PIN_SX_NSS, PIN_SX_DIO1, PIN_SX_RST, PIN_SX_BUSY);
-
-static const size_t  RX_WINDOW = 96;
-static uint8_t       g_syncWord[2] = { 0x55, 0x53 };
-
-#if defined(USE_CC1101_TX)
-const char* name() { return "SX1262rx+CC1101tx"; }
-#else
-const char* name() { return "SX1262"; }
-#endif
-
-static bool configure() {
-    int st = g_radio.beginFSK(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
-                              RF_RXBW_KHZ, 10 /*dBm*/, 16 /*preamble bits*/);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] beginFSK=%d\n", st); return false; }
-    // Heltec V3/V4: the antenna is connected to the SX1262 through an RF switch
-    // driven by DIO2. Without this, the receiver is electrically disconnected
-    // from the antenna -> dead-flat ~-112 dBm RSSI no matter the antenna. REQUIRED.
-    g_radio.setDio2AsRfSwitch(true);
-    g_radio.setTCXO(1.6);                       // Heltec uses a DIO3-powered TCXO
-    g_radio.setSyncWord(g_syncWord, sizeof(g_syncWord));
-    g_radio.setCRC(0);
-    g_radio.setDataShaping(RADIOLIB_SHAPING_0_5);
-    g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
-    g_radio.fixedPacketLengthMode(RX_WINDOW);
-    g_radio.setDio1Action(onDio);
-    return true;
-}
-
-void startReceive() {
-    g_rxFlag = false;
-    g_radio.startReceive();
-}
-
-bool begin() {
-    SPI.begin(PIN_SX_SCK, PIN_SX_MISO, PIN_SX_MOSI, PIN_SX_NSS);
-    bool ok = configure();
-#if defined(USE_CC1101_TX)
-    cc1101tx::begin();          // CC1101 handles transmit; SX1262 keeps RX
-#endif
-    return ok;
-}
-
-bool sendFrame(const ramses::Frame& f) {
-#if defined(USE_CC1101_TX)
-    bool ok = cc1101tx::send(f);    // transmit via CC1101 async UART
-    startReceive();                 // keep the SX1262 listening
-    return ok;
-#else
-    size_t bits = 0;
-    size_t n = ramses::encodeFrame(f, g_onair, sizeof(g_onair), RF_PREAMBLE_BYTES, &bits);
-    if (!n) return false;
-    static uint8_t txSync[2] = { 0x55, 0x55 };
-    g_radio.setSyncWord(txSync, sizeof(txSync));
-    g_radio.fixedPacketLengthMode((uint8_t)n);
-    int st = g_radio.transmit(g_onair, n);
-    g_radio.setSyncWord(g_syncWord, sizeof(g_syncWord));
-    g_radio.fixedPacketLengthMode(RX_WINDOW);
-    startReceive();
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] tx=%d\n", st); return false; }
-    return true;
-#endif
-}
-
-bool poll(ramses::Frame& out) {
-    if (!g_rxFlag) return false;
-    g_rxFlag = false;
-    uint8_t buf[RX_WINDOW];
-    int st = g_radio.readData(buf, RX_WINDOW);
-    g_rssi = g_radio.getRSSI();
-    startReceive();
-    if (st != RADIOLIB_ERR_NONE && st != RADIOLIB_ERR_CRC_MISMATCH) return false;
-    bool ok = ramses::decodeFrame(buf, RX_WINDOW, RX_WINDOW * 8, out);
-#if DEBUG_RX_HEX
-    if (ok) {
-        Serial.printf("[rx %.0fdBm] cmd=%04X len=%u :", g_rssi, out.cmd, out.len);
-        for (uint8_t i = 0; i < out.len; i++) Serial.printf("%02X", out.payload[i]);
-        Serial.println();
-    }
-#endif
-    return ok;
-}
-
-#endif // RADIO_SX1262
-
-// ===========================================================================
-//  CC1101 stand-alone packet back-end (legacy fallback, -D RADIO_CC1101)
-// ===========================================================================
-#if defined(RADIO_CC1101)
-
-static CC1101 g_radio = new Module(PIN_CC_NSS, PIN_CC_GDO0, RADIOLIB_NC, PIN_CC_GDO2);
-static const size_t RX_WINDOW = 96;
-
-const char* name() { return "CC1101"; }
-
-static bool configure() {
-    int st = g_radio.begin(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
-                           RF_RXBW_KHZ, 10 /*dBm*/, RF_PREAMBLE_BYTES);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] cc begin=%d\n", st); return false; }
-    g_radio.setSyncWord(0x55, 0x53);
-    g_radio.setCrcFiltering(false);
-    g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
-    g_radio.fixedPacketLengthMode(RX_WINDOW);
-    g_radio.setGdo0Action(onDio, RISING);
-    return true;
-}
-
-bool begin() {
-    SPI.begin(PIN_SX_SCK, PIN_SX_MISO, PIN_SX_MOSI, PIN_CC_NSS);
-    return configure();
-}
-
-void startReceive() { g_rxFlag = false; g_radio.startReceive(); }
-
-bool sendFrame(const ramses::Frame& f) {
-    size_t bits = 0;
-    size_t n = ramses::encodeFrame(f, g_onair, sizeof(g_onair), RF_PREAMBLE_BYTES, &bits);
-    if (!n) return false;
-    int st = g_radio.transmit(g_onair, n);
-    startReceive();
-    return st == RADIOLIB_ERR_NONE;
-}
-
-bool poll(ramses::Frame& out) {
-    if (!g_rxFlag) return false;
-    g_rxFlag = false;
-    uint8_t buf[RX_WINDOW];
-    int st = g_radio.readData(buf, RX_WINDOW);
-    g_rssi = g_radio.getRSSI();
-    startReceive();
-    if (st != RADIOLIB_ERR_NONE && st != RADIOLIB_ERR_CRC_MISMATCH) return false;
-    return ramses::decodeFrame(buf, RX_WINDOW, RX_WINDOW * 8, out);
-}
-
-#endif // RADIO_CC1101
-
-// ===========================================================================
-//  CC1101 async-serial back-end — RX *and* TX on ONE CC1101 (the evofw3 way).
-//  No SX1262. Receive = the mirror of transmit: CC1101 demodulates onto GDO2,
-//  the UART re-frames the wire bytes, software decodes them.
-// ===========================================================================
-#if defined(RADIO_CC1101_ASYNC)
-const char* name() { return "CC1101 async RX+TX"; }
-bool begin() { return cc1101tx::begin(); }
-void startReceive() { cc1101tx::startRx(); }
-bool sendFrame(const ramses::Frame& f) {
-    bool ok = cc1101tx::send(f);
-    cc1101tx::startRx();                 // straight back to listening
-    return ok;
-}
-bool poll(ramses::Frame& out) {
-    bool ok = cc1101tx::poll(out);
-    g_rssi = (float)cc1101tx::rssiDbm();
-    return ok;
-}
-#endif // RADIO_CC1101_ASYNC
-
-// ===========================================================================
-//  SX1276 back-end (Heltec WiFi LoRa 32 V2) — single-board RX+TX, NO CC1101.
-//  The SX127x family keeps the "continuous/direct" FSK mode the SX1262 dropped,
-//  so we can mirror the CC1101 trick on the on-board radio:
-//   RX: continuous FSK — the demodulated NRZ stream appears on DIO2; a hardware
-//       UART at 38400 8N1 (== the RAMSES byte framing) re-frames it and
-//       extractWireFrame() decodes it (the exact path proven on CC1101 GDO2).
-//   TX: FSK packet mode — the full on-air frame is stuffed as raw payload.
-// ===========================================================================
-#if defined(RADIO_SX1276)
-#include <HardwareSerial.h>
-
-static SX1276 g_radio = new Module(PIN_SX_NSS, PIN_SX_DIO0, PIN_SX_RST, PIN_SX_DIO1);
-static HardwareSerial rxUart(1);     // reads the demodulated data off DIO2
-static uint8_t  g_rxbuf[320];
-static size_t   g_rxlen = 0;
-
-const char* name() { return "SX1276 direct RX + packet TX"; }
-
-static bool configure() {
-    int st = g_radio.beginFSK(RF_FREQ_MHZ, RF_BITRATE_KBPS, RF_DEVIATION_KHZ,
-                              RF_RXBW_KHZ, 17 /*dBm*/, 16 /*preamble bits*/);
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] sx1276 beginFSK=%d\n", st); return false; }
-    g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
-    g_radio.setDataShaping(RADIOLIB_SHAPING_NONE);
-    g_radio.setCRC(false);
-    return true;
-}
-
-void startReceive() {
-    g_radio.receiveDirect();                  // continuous FSK; demod streams on DIO2
-    while (rxUart.available()) rxUart.read();  // flush noise/partial bytes
-    g_rxlen = 0;
-}
-
-bool begin() {
-    SPI.begin(PIN_SX_SCK, PIN_SX_MISO, PIN_SX_MOSI, PIN_SX_NSS);
-    bool ok = configure();
-    rxUart.setRxBufferSize(8192);
-    rxUart.begin(38400, SERIAL_8N1, PIN_SX_DIO2 /*rx*/, -1 /*tx unused*/);
-    return ok;
-}
-
-bool sendFrame(const ramses::Frame& f) {
-    size_t bits = 0;
-    size_t n = ramses::encodeFrame(f, g_onair, sizeof(g_onair), RF_PREAMBLE_BYTES, &bits);
-    if (!n) return false;
-    static uint8_t txSync[2] = { 0x55, 0x53 };
-    g_radio.standby();                        // leave continuous/direct RX cleanly
-    g_radio.setEncoding(RADIOLIB_ENCODING_NRZ);
-    g_radio.setSyncWord(txSync, sizeof(txSync));
-    g_radio.fixedPacketLengthMode((uint8_t)n);
-    int st = g_radio.transmit(g_onair, n);
-    startReceive();                           // straight back to listening
-    if (st != RADIOLIB_ERR_NONE) { Serial.printf("[radio] sx1276 tx=%d\n", st); return false; }
-    return true;
-}
-
-bool poll(ramses::Frame& out) {
-    while (rxUart.available() && g_rxlen < sizeof(g_rxbuf))
-        g_rxbuf[g_rxlen++] = (uint8_t)rxUart.read();
-    if (g_rxlen < 8) return false;
-    size_t consumed = 0;
-    bool ok = ramses::extractWireFrame(g_rxbuf, g_rxlen, &consumed, out);
-    if (ok) g_rssi = g_radio.getRSSI();
-    if (consumed > 0 && consumed <= g_rxlen) {
-        memmove(g_rxbuf, g_rxbuf + consumed, g_rxlen - consumed);
-        g_rxlen -= consumed;
-    } else if (g_rxlen >= sizeof(g_rxbuf)) {
-        g_rxlen = 0;                          // overflow guard
-    }
-    return ok;
-}
-
-#endif // RADIO_SX1276
-
-float lastRssi() { return g_rssi; }
-
-} // namespace radio
+Ly8gcmFtc2VzX3JhZGlvLmNwcCDigJQgc2VlIHJhbXNlc19yYWRpby5oCiNp
+bmNsdWRlICJyYW1zZXNfcmFkaW8uaCIKI2luY2x1ZGUgImNvbmZpZy5oIgoj
+aW5jbHVkZSA8QXJkdWluby5oPgojaW5jbHVkZSA8UmFkaW9MaWIuaD4KI2lm
+IGRlZmluZWQoVVNFX0NDMTEwMV9UWCkgfHwgZGVmaW5lZChSQURJT19DQzEx
+MDFfQVNZTkMpCiNpbmNsdWRlICJjYzExMDFfdHguaCIKI2VuZGlmCgpuYW1l
+c3BhY2UgcmFkaW8gewoKc3RhdGljIHZvbGF0aWxlIGJvb2wgICBnX3J4Rmxh
+ZyA9IGZhbHNlOwpzdGF0aWMgZmxvYXQgICAgICAgICAgIGdfcnNzaSAgID0g
+LTEyNy4wZjsKc3RhdGljIHVpbnQ4X3QgICAgICAgICBnX29uYWlyW3JhbXNl
+czo6TUFYX09OQUlSXTsKCiNpZiBkZWZpbmVkKEVTUDMyKQpJUkFNX0FUVFIK
+I2VuZGlmCnN0YXRpYyB2b2lkIG9uRGlvKCkgeyBnX3J4RmxhZyA9IHRydWU7
+IH0KCi8vID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQovLyAgU1gx
+MjYyIGJhY2stZW5kIChidWlsdC1pbiBIZWx0ZWMgcmFkaW8pLiBSWCBhbHdh
+eXM7IFRYIHZpYSBTWDEyNjIgdW5sZXNzCi8vICBVU0VfQ0MxMTAxX1RYIGlz
+IHNldCwgaW4gd2hpY2ggY2FzZSBhbiBleHRlcm5hbCBDQzExMDEgZG9lcyB0
+aGUgdHJhbnNtaXQuCi8vID09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PQojaWYgZGVmaW5lZChSQURJT19TWDEyNjIpCgpzdGF0aWMgU1gxMjYyIGdf
+cmFkaW8gPSBuZXcgTW9kdWxlKFBJTl9TWF9OU1MsIFBJTl9TWF9ESU8xLCBQ
+SU5fU1hfUlNULCBQSU5fU1hfQlVTWSk7CgpzdGF0aWMgY29uc3Qgc2l6ZV90
+ICBSWF9XSU5ET1cgPSA5NjsKc3RhdGljIHVpbnQ4X3QgICAgICAgZ19zeW5j
+V29yZFsyXSA9IHsgMHg1NSwgMHg1MyB9OwoKI2lmIGRlZmluZWQoVVNFX0ND
+MTEwMV9UWCkKY29uc3QgY2hhciogbmFtZSgpIHsgcmV0dXJuICJTWDEyNjJy
+eCtDQzExMDF0eCI7IH0KI2Vsc2UKY29uc3QgY2hhciogbmFtZSgpIHsgcmV0
+dXJuICJTWDEyNjIiOyB9CiNlbmRpZgoKc3RhdGljIGJvb2wgY29uZmlndXJl
+KCkgewogICAgaW50IHN0ID0gZ19yYWRpby5iZWdpbkZTSyhSRl9GUkVRX01I
+WiwgUkZfQklUUkFURV9LQlBTLCBSRl9ERVZJQVRJT05fS0haLAogICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICBSRl9SWEJXX0tIWiwgMTAgLypkQm0q
+LywgMTYgLypwcmVhbWJsZSBiaXRzKi8pOwogICAgaWYgKHN0ICE9IFJBRElP
+TElCX0VSUl9OT05FKSB7IFNlcmlhbC5wcmludGYoIltyYWRpb10gYmVnaW5G
+U0s9JWRcbiIsIHN0KTsgcmV0dXJuIGZhbHNlOyB9CiAgICAvLyBIZWx0ZWMg
+VjMvVjQ6IHRoZSBhbnRlbm5hIGlzIGNvbm5lY3RlZCB0byB0aGUgU1gxMjYy
+IHRocm91Z2ggYW4gUkYgc3dpdGNoCiAgICAvLyBkcml2ZW4gYnkgRElPMi4g
+V2l0aG91dCB0aGlzLCB0aGUgcmVjZWl2ZXIgaXMgZWxlY3RyaWNhbGx5IGRp
+c2Nvbm5lY3RlZAogICAgLy8gZnJvbSB0aGUgYW50ZW5uYSAtPiBkZWFkLWZs
+YXQgfi0xMTIgZEJtIFJTU0kgbm8gbWF0dGVyIHRoZSBhbnRlbm5hLiBSRVFV
+SVJFRC4KICAgIGdfcmFkaW8uc2V0RGlvMkFzUmZTd2l0Y2godHJ1ZSk7CiAg
+ICBnX3JhZGlvLnNldFRDWE8oMS42KTsgICAgICAgICAgICAgICAgICAgICAg
+IC8vIEhlbHRlYyB1c2VzIGEgRElPMy1wb3dlcmVkIFRDWE8KICAgIGdfcmFk
+aW8uc2V0U3luY1dvcmQoZ19zeW5jV29yZCwgc2l6ZW9mKGdfc3luY1dvcmQp
+KTsKICAgIGdfcmFkaW8uc2V0Q1JDKDApOwogICAgZ19yYWRpby5zZXREYXRh
+U2hhcGluZyhSQURJT0xJQl9TSEFQSU5HXzBfNSk7CiAgICBnX3JhZGlvLnNl
+dEVuY29kaW5nKFJBRElPTElCX0VOQ09ESU5HX05SWik7CiAgICBnX3JhZGlv
+LmZpeGVkUGFja2V0TGVuZ3RoTW9kZShSWF9XSU5ET1cpOwogICAgZ19yYWRp
+by5zZXREaW8xQWN0aW9uKG9uRGlvKTsKICAgIHJldHVybiB0cnVlOwp9Cgp2
+b2lkIHN0YXJ0UmVjZWl2ZSgpIHsKICAgIGdfcnhGbGFnID0gZmFsc2U7CiAg
+ICBnX3JhZGlvLnN0YXJ0UmVjZWl2ZSgpOwp9Cgpib29sIGJlZ2luKCkgewog
+ICAgU1BJLmJlZ2luKFBJTl9TWF9TQ0ssIFBJTl9TWF9NSVNPLCBQSU5fU1hf
+TU9TSSwgUElOX1NYX05TUyk7CiAgICBib29sIG9rID0gY29uZmlndXJlKCk7
+CiNpZiBkZWZpbmVkKFVTRV9DQzExMDFfVFgpCiAgICBjYzExMDF0eDo6YmVn
+aW4oKTsgICAgICAgICAgLy8gQ0MxMTAxIGhhbmRsZXMgdHJhbnNtaXQ7IFNY
+MTI2MiBrZWVwcyBSWAojZW5kaWYKICAgIHJldHVybiBvazsKfQoKYm9vbCBz
+ZW5kRnJhbWUoY29uc3QgcmFtc2VzOjpGcmFtZSYgZikgewojaWYgZGVmaW5l
+ZChVU0VfQ0MxMTAxX1RYKQogICAgYm9vbCBvayA9IGNjMTEwMXR4OjpzZW5k
+KGYpOyAgICAvLyB0cmFuc21pdCB2aWEgQ0MxMTAxIGFzeW5jIFVBUlQKICAg
+IHN0YXJ0UmVjZWl2ZSgpOyAgICAgICAgICAgICAgICAgLy8ga2VlcCB0aGUg
+U1gxMjYyIGxpc3RlbmluZwogICAgcmV0dXJuIG9rOwojZWxzZQogICAgc2l6
+ZV90IGJpdHMgPSAwOwogICAgc2l6ZV90IG4gPSByYW1zZXM6OmVuY29kZUZy
+YW1lKGYsIGdfb25haXIsIHNpemVvZihnX29uYWlyKSwgUkZfUFJFQU1CTEVf
+QllURVMsICZiaXRzKTsKICAgIGlmICghbikgcmV0dXJuIGZhbHNlOwogICAg
+c3RhdGljIHVpbnQ4X3QgdHhTeW5jWzJdID0geyAweDU1LCAweDU1IH07CiAg
+ICBnX3JhZGlvLnNldFN5bmNXb3JkKHR4U3luYywgc2l6ZW9mKHR4U3luYykp
+OwogICAgZ19yYWRpby5maXhlZFBhY2tldExlbmd0aE1vZGUoKHVpbnQ4X3Qp
+bik7CiAgICBpbnQgc3QgPSBnX3JhZGlvLnRyYW5zbWl0KGdfb25haXIsIG4p
+OwogICAgZ19yYWRpby5zZXRTeW5jV29yZChnX3N5bmNXb3JkLCBzaXplb2Yo
+Z19zeW5jV29yZCkpOwogICAgZ19yYWRpby5maXhlZFBhY2tldExlbmd0aE1v
+ZGUoUlhfV0lORE9XKTsKICAgIHN0YXJ0UmVjZWl2ZSgpOwogICAgaWYgKHN0
+ICE9IFJBRElPTElCX0VSUl9OT05FKSB7IFNlcmlhbC5wcmludGYoIltyYWRp
+b10gdHg9JWRcbiIsIHN0KTsgcmV0dXJuIGZhbHNlOyB9CiAgICByZXR1cm4g
+dHJ1ZTsKI2VuZGlmCn0KCmJvb2wgcG9sbChyYW1zZXM6OkZyYW1lJiBvdXQp
+IHsKICAgIGlmICghZ19yeEZsYWcpIHJldHVybiBmYWxzZTsKICAgIGdfcnhG
+bGFnID0gZmFsc2U7CiAgICB1aW50OF90IGJ1ZltSWF9XSU5ET1ddOwogICAg
+aW50IHN0ID0gZ19yYWRpby5yZWFkRGF0YShidWYsIFJYX1dJTkRPVyk7CiAg
+ICBnX3Jzc2kgPSBnX3JhZGlvLmdldFJTU0koKTsKICAgIHN0YXJ0UmVjZWl2
+ZSgpOwogICAgaWYgKHN0ICE9IFJBRElPTElCX0VSUl9OT05FICYmIHN0ICE9
+IFJBRElPTElCX0VSUl9DUkNfTUlTTUFUQ0gpIHJldHVybiBmYWxzZTsKICAg
+IGJvb2wgb2sgPSByYW1zZXM6OmRlY29kZUZyYW1lKGJ1ZiwgUlhfV0lORE9X
+LCBSWF9XSU5ET1cgKiA4LCBvdXQpOwojaWYgREVCVUdfUlhfSEVYCiAgICBp
+ZiAob2spIHsKICAgICAgICBTZXJpYWwucHJpbnRmKCJbcnggJS4wZmRCbV0g
+Y21kPSUwNFggbGVuPSV1IDoiLCBnX3Jzc2ksIG91dC5jbWQsIG91dC5sZW4p
+OwogICAgICAgIGZvciAodWludDhfdCBpID0gMDsgaSA8IG91dC5sZW47IGkr
+KykgU2VyaWFsLnByaW50ZigiJTAyWCIsIG91dC5wYXlsb2FkW2ldKTsKICAg
+ICAgICBTZXJpYWwucHJpbnRsbigpOwogICAgfQojZW5kaWYKICAgIHJldHVy
+biBvazsKfQoKI2VuZGlmIC8vIFJBRElPX1NYMTI2MgoKLy8gPT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09Ci8vICBDQzExMDEgc3RhbmQtYWxvbmUg
+cGFja2V0IGJhY2stZW5kIChsZWdhY3kgZmFsbGJhY2ssIC1EIFJBRElPX0ND
+MTEwMSkKLy8gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiNpZiBk
+ZWZpbmVkKFJBRElPX0NDMTEwMSkKCnN0YXRpYyBDQzExMDEgZ19yYWRpbyA9
+IG5ldyBNb2R1bGUoUElOX0NDX05TUywgUElOX0NDX0dETzAsIFJBRElPTElC
+X05DLCBQSU5fQ0NfR0RPMik7CnN0YXRpYyBjb25zdCBzaXplX3QgUlhfV0lO
+RE9XID0gOTY7Cgpjb25zdCBjaGFyKiBuYW1lKCkgeyByZXR1cm4gIkNDMTEw
+MSI7IH0KCnN0YXRpYyBib29sIGNvbmZpZ3VyZSgpIHsKICAgIGludCBzdCA9
+IGdfcmFkaW8uYmVnaW4oUkZfRlJFUV9NSFosIFJGX0JJVFJBVEVfS0JQUywg
+UkZfREVWSUFUSU9OX0tIWiwKICAgICAgICAgICAgICAgICAgICAgICAgICAg
+UkZfUlhCV19LSFosIDEwIC8qZEJtKi8sIFJGX1BSRUFNQkxFX0JZVEVTKTsK
+ICAgIGlmIChzdCAhPSBSQURJT0xJQl9FUlJfTk9ORSkgeyBTZXJpYWwucHJp
+bnRmKCJbcmFkaW9dIGNjIGJlZ2luPSVkXG4iLCBzdCk7IHJldHVybiBmYWxz
+ZTsgfQogICAgZ19yYWRpby5zZXRTeW5jV29yZCgweDU1LCAweDUzKTsKICAg
+IGdfcmFkaW8uc2V0Q3JjRmlsdGVyaW5nKGZhbHNlKTsKICAgIGdfcmFkaW8u
+c2V0RW5jb2RpbmcoUkFESU9MSUJfRU5DT0RJTkdfTlJaKTsKICAgIGdfcmFk
+aW8uZml4ZWRQYWNrZXRMZW5ndGhNb2RlKFJYX1dJTkRPVyk7CiAgICBnX3Jh
+ZGlvLnNldEdkbzBBY3Rpb24ob25EaW8sIFJJU0lORyk7CiAgICByZXR1cm4g
+dHJ1ZTsKfQoKYm9vbCBiZWdpbigpIHsKICAgIFNQSS5iZWdpbihQSU5fU1hf
+U0NLLCBQSU5fU1hfTUlTTywgUElOX1NYX01PU0ksIFBJTl9DQ19OU1MpOwog
+ICAgcmV0dXJuIGNvbmZpZ3VyZSgpOwp9Cgp2b2lkIHN0YXJ0UmVjZWl2ZSgp
+IHsgZ19yeEZsYWcgPSBmYWxzZTsgZ19yYWRpby5zdGFydFJlY2VpdmUoKTsg
+fQoKYm9vbCBzZW5kRnJhbWUoY29uc3QgcmFtc2VzOjpGcmFtZSYgZikgewog
+ICAgc2l6ZV90IGJpdHMgPSAwOwogICAgc2l6ZV90IG4gPSByYW1zZXM6OmVu
+Y29kZUZyYW1lKGYsIGdfb25haXIsIHNpemVvZihnX29uYWlyKSwgUkZfUFJF
+QU1CTEVfQllURVMsICZiaXRzKTsKICAgIGlmICghbikgcmV0dXJuIGZhbHNl
+OwogICAgaW50IHN0ID0gZ19yYWRpby50cmFuc21pdChnX29uYWlyLCBuKTsK
+ICAgIHN0YXJ0UmVjZWl2ZSgpOwogICAgcmV0dXJuIHN0ID09IFJBRElPTElC
+X0VSUl9OT05FOwp9Cgpib29sIHBvbGwocmFtc2VzOjpGcmFtZSYgb3V0KSB7
+CiAgICBpZiAoIWdfcnhGbGFnKSByZXR1cm4gZmFsc2U7CiAgICBnX3J4Rmxh
+ZyA9IGZhbHNlOwogICAgdWludDhfdCBidWZbUlhfV0lORE9XXTsKICAgIGlu
+dCBzdCA9IGdfcmFkaW8ucmVhZERhdGEoYnVmLCBSWF9XSU5ET1cpOwogICAg
+Z19yc3NpID0gZ19yYWRpby5nZXRSU1NJKCk7CiAgICBzdGFydFJlY2VpdmUo
+KTsKICAgIGlmIChzdCAhPSBSQURJT0xJQl9FUlJfTk9ORSAmJiBzdCAhPSBS
+QURJT0xJQl9FUlJfQ1JDX01JU01BVENIKSByZXR1cm4gZmFsc2U7CiAgICBy
+ZXR1cm4gcmFtc2VzOjpkZWNvZGVGcmFtZShidWYsIFJYX1dJTkRPVywgUlhf
+V0lORE9XICogOCwgb3V0KTsKfQoKI2VuZGlmIC8vIFJBRElPX0NDMTEwMQoK
+Ly8gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci8vICBDQzExMDEg
+YXN5bmMtc2VyaWFsIGJhY2stZW5kIOKAlCBSWCAqYW5kKiBUWCBvbiBPTkUg
+Q0MxMTAxICh0aGUgZXZvZnczIHdheSkuCi8vICBObyBTWDEyNjIuIFJlY2Vp
+dmUgPSB0aGUgbWlycm9yIG9mIHRyYW5zbWl0OiBDQzExMDEgZGVtb2R1bGF0
+ZXMgb250byBHRE8yLAovLyAgdGhlIFVBUlQgcmUtZnJhbWVzIHRoZSB3aXJl
+IGJ5dGVzLCBzb2Z0d2FyZSBkZWNvZGVzIHRoZW0uCi8vID09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PQojaWYgZGVmaW5lZChSQURJT19DQzExMDFf
+QVNZTkMpCmNvbnN0IGNoYXIqIG5hbWUoKSB7IHJldHVybiAiQ0MxMTAxIGFz
+eW5jIFJYK1RYIjsgfQpib29sIGJlZ2luKCkgeyByZXR1cm4gY2MxMTAxdHg6
+OmJlZ2luKCk7IH0Kdm9pZCBzdGFydFJlY2VpdmUoKSB7IGNjMTEwMXR4Ojpz
+dGFydFJ4KCk7IH0KYm9vbCBzZW5kRnJhbWUoY29uc3QgcmFtc2VzOjpGcmFt
+ZSYgZikgewogICAgYm9vbCBvayA9IGNjMTEwMXR4OjpzZW5kKGYpOwogICAg
+Y2MxMTAxdHg6OnN0YXJ0UngoKTsgICAgICAgICAgICAgICAgIC8vIHN0cmFp
+Z2h0IGJhY2sgdG8gbGlzdGVuaW5nCiAgICByZXR1cm4gb2s7Cn0KYm9vbCBw
+b2xsKHJhbXNlczo6RnJhbWUmIG91dCkgewogICAgYm9vbCBvayA9IGNjMTEw
+MXR4Ojpwb2xsKG91dCk7CiAgICBnX3Jzc2kgPSAoZmxvYXQpY2MxMTAxdHg6
+OnJzc2lEYm0oKTsKICAgIHJldHVybiBvazsKfQojZW5kaWYgLy8gUkFESU9f
+Q0MxMTAxX0FTWU5DCgovLyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT0KLy8gIFNYMTI3NiBiYWNrLWVuZCAoSGVsdGVjIFdpRmkgTG9SYSAzMiBW
+Mikg4oCUIHNpbmdsZS1ib2FyZCBSWCtUWCwgTk8gQ0MxMTAxLgovLyAgVGhl
+IFNYMTI3eCBmYW1pbHkga2VlcHMgdGhlICJjb250aW51b3VzL2RpcmVjdCIg
+RlNLIG1vZGUgdGhlIFNYMTI2MiBkcm9wcGVkLAovLyAgc28gd2UgY2FuIG1p
+cnJvciB0aGUgQ0MxMTAxIHRyaWNrIG9uIHRoZSBvbi1ib2FyZCByYWRpbzoK
+Ly8gICBSWDogY29udGludW91cyBGU0sg4oCUIHRoZSBkZW1vZHVsYXRlZCBO
+Ulogc3RyZWFtIGFwcGVhcnMgb24gRElPMjsgYSBoYXJkd2FyZQovLyAgICAg
+ICBVQVJUIGF0IDM4NDAwIDhOMSAoPT0gdGhlIFJBTVNFUyBieXRlIGZyYW1p
+bmcpIHJlLWZyYW1lcyBpdCBhbmQKLy8gICAgICAgZXh0cmFjdFdpcmVGcmFt
+ZSgpIGRlY29kZXMgaXQgKHRoZSBleGFjdCBwYXRoIHByb3ZlbiBvbiBDQzEx
+MDEgR0RPMikuCi8vICAgVFg6IEZTSyBwYWNrZXQgbW9kZSDigJQgdGhlIGZ1
+bGwgb24tYWlyIGZyYW1lIGlzIHN0dWZmZWQgYXMgcmF3IHBheWxvYWQuCi8v
+ID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQojaWYgZGVmaW5lZChS
+QURJT19TWDEyNzYpCiNpbmNsdWRlIDxIYXJkd2FyZVNlcmlhbC5oPgoKc3Rh
+dGljIFNYMTI3NiBnX3JhZGlvID0gbmV3IE1vZHVsZShQSU5fU1hfTlNTLCBQ
+SU5fU1hfRElPMCwgUElOX1NYX1JTVCwgUElOX1NYX0RJTzEpOwpzdGF0aWMg
+SGFyZHdhcmVTZXJpYWwgcnhVYXJ0KDEpOyAgICAgLy8gcmVhZHMgdGhlIGRl
+bW9kdWxhdGVkIGRhdGEgb2ZmIERJTzIKc3RhdGljIHVpbnQ4X3QgIGdfcnhi
+dWZbMzIwXTsKc3RhdGljIHNpemVfdCAgIGdfcnhsZW4gPSAwOwoKY29uc3Qg
+Y2hhciogbmFtZSgpIHsgcmV0dXJuICJTWDEyNzYgZGlyZWN0IFJYICsgcGFj
+a2V0IFRYIjsgfQoKc3RhdGljIGJvb2wgY29uZmlndXJlKCkgewogICAgaW50
+IHN0ID0gZ19yYWRpby5iZWdpbkZTSyhSRl9GUkVRX01IWiwgUkZfQklUUkFU
+RV9LQlBTLCBSRl9ERVZJQVRJT05fS0haLAogICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICBSRl9SWEJXX0tIWiwgMTcgLypkQm0qLywgMTYgLypwcmVh
+bWJsZSBiaXRzKi8pOwogICAgaWYgKHN0ICE9IFJBRElPTElCX0VSUl9OT05F
+KSB7IFNlcmlhbC5wcmludGYoIltyYWRpb10gc3gxMjc2IGJlZ2luRlNLPSVk
+XG4iLCBzdCk7IHJldHVybiBmYWxzZTsgfQogICAgZ19yYWRpby5zZXRFbmNv
+ZGluZyhSQURJT0xJQl9FTkNPRElOR19OUlopOwogICAgZ19yYWRpby5zZXRE
+YXRhU2hhcGluZyhSQURJT0xJQl9TSEFQSU5HX05PTkUpOwogICAgZ19yYWRp
+by5zZXRDUkMoZmFsc2UpOwogICAgcmV0dXJuIHRydWU7Cn0KCnZvaWQgc3Rh
+cnRSZWNlaXZlKCkgewogICAgZ19yYWRpby5yZWNlaXZlRGlyZWN0KCk7ICAg
+ICAgICAgICAgICAgICAgLy8gY29udGludW91cyBGU0s7IGRlbW9kIHN0cmVh
+bXMgb24gRElPMgogICAgd2hpbGUgKHJ4VWFydC5hdmFpbGFibGUoKSkgcnhV
+YXJ0LnJlYWQoKTsgIC8vIGZsdXNoIG5vaXNlL3BhcnRpYWwgYnl0ZXMKICAg
+IGdfcnhsZW4gPSAwOwp9Cgpib29sIGJlZ2luKCkgewogICAgU1BJLmJlZ2lu
+KFBJTl9TWF9TQ0ssIFBJTl9TWF9NSVNPLCBQSU5fU1hfTU9TSSwgUElOX1NY
+X05TUyk7CiAgICBib29sIG9rID0gY29uZmlndXJlKCk7CiAgICByeFVhcnQu
+c2V0UnhCdWZmZXJTaXplKDgxOTIpOwogICAgcnhVYXJ0LmJlZ2luKDM4NDAw
+LCBTRVJJQUxfOE4xLCBQSU5fU1hfRElPMiAvKnJ4Ki8sIC0xIC8qdHggdW51
+c2VkKi8pOwogICAgcmV0dXJuIG9rOwp9Cgpib29sIHNlbmRGcmFtZShjb25z
+dCByYW1zZXM6OkZyYW1lJiBmKSB7CiAgICBzaXplX3QgYml0cyA9IDA7CiAg
+ICBzaXplX3QgbiA9IHJhbXNlczo6ZW5jb2RlRnJhbWUoZiwgZ19vbmFpciwg
+c2l6ZW9mKGdfb25haXIpLCBSRl9QUkVBTUJMRV9CWVRFUywgJmJpdHMpOwog
+ICAgaWYgKCFuKSByZXR1cm4gZmFsc2U7CiAgICBzdGF0aWMgdWludDhfdCB0
+eFN5bmNbMl0gPSB7IDB4NTUsIDB4NTMgfTsKICAgIGdfcmFkaW8uc3RhbmRi
+eSgpOyAgICAgICAgICAgICAgICAgICAgICAgIC8vIGxlYXZlIGNvbnRpbnVv
+dXMvZGlyZWN0IFJYIGNsZWFubHkKICAgIGdfcmFkaW8uc2V0RW5jb2Rpbmco
+UkFESU9MSUJfRU5DT0RJTkdfTlJaKTsKICAgIGdfcmFkaW8uc2V0U3luY1dv
+cmQodHhTeW5jLCBzaXplb2YodHhTeW5jKSk7CiAgICBnX3JhZGlvLmZpeGVk
+UGFja2V0TGVuZ3RoTW9kZSgodWludDhfdCluKTsKICAgIGludCBzdCA9IGdf
+cmFkaW8udHJhbnNtaXQoZ19vbmFpciwgbik7CiAgICBzdGFydFJlY2VpdmUo
+KTsgICAgICAgICAgICAgICAgICAgICAgICAgICAvLyBzdHJhaWdodCBiYWNr
+IHRvIGxpc3RlbmluZwogICAgaWYgKHN0ICE9IFJBRElPTElCX0VSUl9OT05F
+KSB7IFNlcmlhbC5wcmludGYoIltyYWRpb10gc3gxMjc2IHR4PSVkXG4iLCBz
+dCk7IHJldHVybiBmYWxzZTsgfQogICAgcmV0dXJuIHRydWU7Cn0KCmJvb2wg
+cG9sbChyYW1zZXM6OkZyYW1lJiBvdXQpIHsKICAgIHdoaWxlIChyeFVhcnQu
+YXZhaWxhYmxlKCkgJiYgZ19yeGxlbiA8IHNpemVvZihnX3J4YnVmKSkKICAg
+ICAgICBnX3J4YnVmW2dfcnhsZW4rK10gPSAodWludDhfdClyeFVhcnQucmVh
+ZCgpOwogICAgaWYgKGdfcnhsZW4gPCA4KSByZXR1cm4gZmFsc2U7CiAgICBz
+aXplX3QgY29uc3VtZWQgPSAwOwogICAgYm9vbCBvayA9IHJhbXNlczo6ZXh0
+cmFjdFdpcmVGcmFtZShnX3J4YnVmLCBnX3J4bGVuLCAmY29uc3VtZWQsIG91
+dCk7CiAgICBpZiAob2spIGdfcnNzaSA9IGdfcmFkaW8uZ2V0UlNTSSgpOwog
+ICAgaWYgKGNvbnN1bWVkID4gMCAmJiBjb25zdW1lZCA8PSBnX3J4bGVuKSB7
+CiAgICAgICAgbWVtbW92ZShnX3J4YnVmLCBnX3J4YnVmICsgY29uc3VtZWQs
+IGdfcnhsZW4gLSBjb25zdW1lZCk7CiAgICAgICAgZ19yeGxlbiAtPSBjb25z
+dW1lZDsKICAgIH0gZWxzZSBpZiAoZ19yeGxlbiA+PSBzaXplb2YoZ19yeGJ1
+ZikpIHsKICAgICAgICBnX3J4bGVuID0gMDsgICAgICAgICAgICAgICAgICAg
+ICAgICAgIC8vIG92ZXJmbG93IGd1YXJkCiAgICB9CiAgICByZXR1cm4gb2s7
+Cn0KCiNlbmRpZiAvLyBSQURJT19TWDEyNzYKCmZsb2F0IGxhc3RSc3NpKCkg
+eyByZXR1cm4gZ19yc3NpOyB9Cgp9IC8vIG5hbWVzcGFjZSByYWRpbwo=
