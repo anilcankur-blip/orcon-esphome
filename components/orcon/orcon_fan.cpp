@@ -3,6 +3,7 @@
 #include "orcon.h"
 #include "orcon_compat.h"
 #include <string.h>
+#include "esp_mac.h"
 
 namespace esphome::orcon_esphome {
 
@@ -17,8 +18,13 @@ fan::FanTraits OrconFan::get_traits() {
 }
 
 void OrconFan::setup() {
-  uint64_t mac = ESP.getEfuseMac();
-  uint32_t us_serial = (uint32_t)(mac & 0x3FFFFUL);
+  uint8_t mac[6];
+  if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to read ESP32 MAC address");
+    this->mark_failed();
+    return;
+  }
+  uint32_t us_serial = ((((uint32_t) mac[3]) << 16) | (((uint32_t) mac[4]) << 8) | mac[5]) & 0x3FFFFUL;
   if (!radio::begin()) {
     ESP_LOGE(TAG, "CC1101 initialization failed");
     this->mark_failed();
