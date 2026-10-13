@@ -1,6 +1,6 @@
 // orcon_log.cpp — see orcon_log.h
 #include "orcon_log.h"
-#include <Arduino.h>
+#include "orcon_compat.h"
 #include <stdio.h>
 #include <string.h>
 
