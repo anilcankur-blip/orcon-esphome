@@ -1,7 +1,7 @@
 // CC1101 async-serial transport for Orcon RAMSES frames.
 #include "cc1101_tx.h"
 #include "config.h"
-#include <Arduino.h>
+#include "orcon_compat.h"
 #include <driver/spi_master.h>
 #include <string.h>
 
