@@ -1,6 +1,5 @@
 #pragma once
 #include "esphome/components/button/button.h"
-#include "esphome/components/number/number.h"
 #include "esphome/core/component.h"
 
 namespace esphome::orcon_esphome {
@@ -18,11 +17,6 @@ void timer60();
 void timerCustom();
 void modeBoost();
 void startPairing();
-
-class OrconTimerNumber : public number::Number, public Component {
- public:
-  void control(float value) override;
-};
 
 class OrconPairButton : public button::Button, public Component {
  public:
