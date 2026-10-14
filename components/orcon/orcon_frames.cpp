@@ -96,36 +96,52 @@ ramses::Frame make1298(const Ids& id, uint16_t ppm) {
     return f;
 }
 
-// 10E0 device info (self broadcast). OEM blob + an ASCII descriptor.
+// 10E0 device info. The published successful Orcon 15RF bind trace uses
+// addr0=our controller, addr1=broadcast, addr2 absent (not a self-address).
+// Payload copied byte-for-byte from the documented working 15RF example.
 ramses::Frame make10E0(const Ids& id) {
-    ramses::Frame f = selfBcast(id, ramses::MsgType::I, 0x10E0);
+    ramses::Frame f;
+    f.type = ramses::MsgType::I;
+    f.has_addr[0] = true;  f.addr[0] = id.us;
+    f.has_addr[1] = true;  f.addr[1] = ramses::DeviceId(0x3F, 0x3FFFF);
+    f.has_addr[2] = false;
+    f.cmd = 0x10E0;
     static const uint8_t info[] = {
-        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-        0x00,0x01,0x00,0x00, 0x00,0x00,0x00,0x00,
-        0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-        0x4F,0x52,0x43,0x4F,0x4E,0x2D,0x31,0x35,0x52,0x46  // "ORCON-15RF"
+        0x00,0x00,0x01,0xC8,0x94,0x03,0x01,0x67,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x1B,0x08,
+        0x07,0xE4,0x56,0x4D,0x49,0x2D,0x31,0x35,
+        0x57,0x53,0x4A,0x35,0x33,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00
     };
-    f.len = (uint8_t)sizeof(info);
-    if (f.len > ramses::MAX_PAYLOAD) f.len = ramses::MAX_PAYLOAD;
+    f.len = (uint8_t)sizeof(info); // 38 bytes, as required by the 15RF example
     for (uint8_t i = 0; i < f.len; i++) f.payload[i] = info[i];
     return f;
 }
 
-// 1FC9 RF bind offer (self broadcast). Tuples of [idx][code-hi][code-lo][id0..2]
-// (6 bytes each) for each code we will send. idx 0x00 for our HVAC domain.
+// 1FC9 RF bind offer. Address layout follows the documented bind exchange:
+// addr0=our controller, addr1 absent, addr2=fan (32:000000 until learned).
+// Advertise the four functions used by the 15RF binding examples: 22F1,
+// 22F3, 10E0 and 1FC9. Each tuple is [domain/index][code-hi][code-lo][our ID].
 ramses::Frame make1FC9_bind(const Ids& id) {
-    ramses::Frame f = selfBcast(id, ramses::MsgType::I, 0x1FC9);
+    ramses::Frame f;
+    f.type = ramses::MsgType::I;
+    f.has_addr[0] = true;  f.addr[0] = id.us;
+    f.has_addr[1] = false;
+    f.has_addr[2] = true;
+    f.addr[2] = (id.fan.cls == 0x20) ? id.fan : ramses::DeviceId(0x20, 0x000000);
+    f.cmd = 0x1FC9;
+
     uint32_t r = id.us.raw();
     uint8_t i0=(uint8_t)((r>>16)&0xFF), i1=(uint8_t)((r>>8)&0xFF), i2=(uint8_t)(r&0xFF);
-    const uint16_t codes[] = { 0x22F1, 0x31E0, 0x1298, 0x10E0 };
+    const uint16_t codes[] = { 0x22F1, 0x22F3, 0x10E0, 0x1FC9 };
     uint8_t n = 0;
-    for (uint16_t c : codes) {
-        f.payload[n++] = 0x00;                  // domain/index
-        f.payload[n++] = (uint8_t)(c >> 8);
-        f.payload[n++] = (uint8_t)(c & 0xFF);
+    for (uint16_t code : codes) {
+        f.payload[n++] = 0x00;
+        f.payload[n++] = (uint8_t)(code >> 8);
+        f.payload[n++] = (uint8_t)(code & 0xFF);
         f.payload[n++] = i0; f.payload[n++] = i1; f.payload[n++] = i2;
     }
-    f.len = n;                                   // 4 codes * 6 = 24 bytes
+    f.len = n; // 4 tuples * 6 bytes = 24
     return f;
 }
 
