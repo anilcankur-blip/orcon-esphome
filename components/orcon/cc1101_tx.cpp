@@ -94,7 +94,22 @@ bool begin() {
         delay(10);
     }
 
+    const uint8_t iocfg0 = readConfig(0x02);
+    const uint8_t pktctrl0 = readConfig(0x08);
+    const uint8_t freq2 = readConfig(0x0D);
+    const uint8_t freq1 = readConfig(0x0E);
+    const uint8_t freq0 = readConfig(0x0F);
+    const uint8_t mdmcfg4 = readConfig(0x10);
+    const uint8_t mdmcfg3 = readConfig(0x11);
+    const uint8_t deviatn = readConfig(0x15);
     OrconSerial.printf("[cc1101] version=0x%02X (expect ~0x14)\n", g_ver);
+    OrconSerial.printf("[cc1101] REG IOCFG0=%02X PKTCTRL0=%02X FREQ=%02X:%02X:%02X MDMCFG4=%02X MDMCFG3=%02X DEVIATN=%02X\n",
+        iocfg0, pktctrl0, freq2, freq1, freq0, mdmcfg4, mdmcfg3, deviatn);
+    if (iocfg0 != 0x0E || pktctrl0 != 0x31 || freq2 != 0x21 ||
+        freq1 != 0x65 || freq0 != 0x6A || mdmcfg4 != 0x6A ||
+        mdmcfg3 != 0x83 || deviatn != 0x50) {
+        OrconSerial.printf("[cc1101] WARNING: critical register readback differs from configured image\n");
+    }
     ccUart.setRxBufferSize(8192);
     ccUart.begin(38400, SERIAL_8N1, PIN_CC_GDO2, PIN_CC_GDO0);
     return (g_ver != 0x00 && g_ver != 0xFF);
