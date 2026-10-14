@@ -57,4 +57,3 @@ number:
     min_value: 1
     max_value: 120
     step: 1
-    initial_value: 15
