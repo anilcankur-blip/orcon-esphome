@@ -41,6 +41,10 @@ void timerCustom() {
   orcon::setTimer(custom_timer_minutes);
 }
 
+void OrconTimerNumber::setup() {
+  this->publish_state(15.0f);
+}
+
 void OrconTimerNumber::control(float value) {
   if (!std::isfinite(value)) return;
   int minutes = static_cast<int>(value + 0.5f);
