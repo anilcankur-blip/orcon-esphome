@@ -5,6 +5,7 @@
 #include "esp_mac.h"
 #include "esphome/core/log.h"
 #include <stdio.h>
+#include <cmath>
 
 namespace esphome::orcon_esphome {
 
@@ -14,6 +15,7 @@ static bool init_ok = false;
 static uint32_t last_logged_tx = 0;
 static uint32_t last_logged_rx = 0;
 static orcon::PairState last_pair_state = orcon::PairState::Idle;
+static uint16_t custom_timer_minutes = 15;
 
 static void formatAddr(const ramses::Frame &frame, uint8_t index, char *out, size_t cap) {
   if (index >= 3 || !frame.has_addr[index]) {
@@ -33,6 +35,20 @@ void modeAuto()  { ESP_LOGI(TAG, "Button command: Auto"); orcon::setMode(orcon::
 void timer15()   { ESP_LOGI(TAG, "Button command: Timer 15 min"); orcon::setTimer(15); }
 void timer30()   { ESP_LOGI(TAG, "Button command: Timer 30 min"); orcon::setTimer(30); }
 void timer60()   { ESP_LOGI(TAG, "Button command: Timer 60 min"); orcon::setTimer(60); }
+void timerCustom() {
+  ESP_LOGI(TAG, "Button command: Custom timer %u min", custom_timer_minutes);
+  orcon::setTimer(custom_timer_minutes);
+}
+
+void OrconTimerNumber::control(float value) {
+  if (!std::isfinite(value)) return;
+  int minutes = static_cast<int>(value + 0.5f);
+  if (minutes < 1) minutes = 1;
+  if (minutes > 120) minutes = 120;
+  custom_timer_minutes = static_cast<uint16_t>(minutes);
+  this->publish_state(static_cast<float>(custom_timer_minutes));
+  ESP_LOGI(TAG, "Custom timer duration set to %u min", custom_timer_minutes);
+}
 void modeBoost() { ESP_LOGI(TAG, "Button command: Boost"); orcon::setMode(orcon::Mode::Boost); }
 void startPairing() { ESP_LOGI(TAG, "Button command: start pairing"); orcon::startPairing(); }
 
