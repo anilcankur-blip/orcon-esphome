@@ -37,3 +37,18 @@ button:
     name: "Orcon Boost"
   - platform: orcon
     name: "Orcon Pairing"
+  - platform: orcon
+    name: "Orcon Timer 15"
+  - platform: orcon
+    name: "Orcon Timer 30"
+  - platform: orcon
+    name: "Orcon Timer 60"
+  - platform: orcon
+    name: "Orcon Timer Başlat"
+
+number:
+  - platform: orcon
+    name: "Orcon Timer Süresi"
+    min_value: 1
+    max_value: 120
+    step: 1
