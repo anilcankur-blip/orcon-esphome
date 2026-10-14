@@ -243,9 +243,26 @@ bool onFrame(const ramses::Frame& f) {
     fmtFrame(f, g_state.lastRx, sizeof(g_state.lastRx));
 
     bool fromFan = false;
+
+    // Learn the destination of a real 22F1 remote command. On some MVS-15R
+    // installations the fan reports class 29 (0x1D), not the usual class 32
+    // (0x20). The captured remote packet identifies the fan unambiguously:
+    // addr0 is the remote and addr1 is the command destination.
+    if (!g_fanSerialFixed && f.cmd == 0x22F1 &&
+        f.has_addr[0] && f.has_addr[1] &&
+        (f.addr[0].cls == 0x1D || f.addr[0].cls == 0x25) &&
+        (f.addr[1].cls == 0x1D || f.addr[1].cls == DEV_FAN_CLASS) &&
+        f.addr[1].serial != 0) {
+        g_ids.fan = f.addr[1];
+        g_state.fanKnown = true;
+        g_fanSerialFixed = true;
+        g_idsDirty = true;  // persist the discovered ID via the component
+    }
+
     for (int i = 0; i < 3; i++) {
         if (!f.has_addr[i]) continue;
         if (f.addr[i].cls == DEV_FAN_CLASS) { learnFan(f.addr[i]); g_state.lastFanMs = millis(); }
+        if (g_state.fanKnown && f.addr[i] == g_ids.fan) g_state.lastFanMs = millis();
     }
     if (f.has_addr[0] && f.addr[0].cls == DEV_FAN_CLASS) fromFan = true;
 
