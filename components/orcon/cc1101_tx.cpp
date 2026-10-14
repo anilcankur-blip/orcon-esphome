@@ -125,15 +125,28 @@ bool send(const ramses::Frame& f) {
 
     strobe(SIDLE);
     strobe(SFTX);
+    const uint8_t stateBeforeTx = readStatus(0x35); // MARCSTATE
     strobe(STX);
     delayMicroseconds(300);
+    const uint8_t stateAfterStx = readStatus(0x35); // expected TX state is 0x13
 
-    for (int i = 0; i < RF_PREAMBLE_BYTES + 2; i++) ccUart.write((uint8_t)0x55);
+    size_t preambleLen = 0;
+    for (int i = 0; i < RF_PREAMBLE_BYTES + 2; i++) {
+        ccUart.write((uint8_t)0x55);
+        preambleLen++;
+    }
     ccUart.write(wire, wn);
     ccUart.flush();
     delayMicroseconds(200);
+    const uint8_t stateBeforeIdle = readStatus(0x35);
+    const uint8_t txBytes = readStatus(0x3A); // TXBYTES status register
+    OrconSerial.printf("[cc1101] TX diag: cmd=%04X type=%u src=%02X:%06lX dst=%s%02X:%06lX wire=%u uart_bytes=%u MARCSTATE before=%02X after-STX=%02X before-IDLE=%02X TXBYTES=%02X\\n",
+        f.cmd, (unsigned)f.type, f.addr[0].cls, (unsigned long)f.addr[0].serial,
+        f.has_addr[1] ? "" : "(none)", f.addr[1].cls, (unsigned long)f.addr[1].serial,
+        (unsigned)wn, (unsigned)(preambleLen + wn), stateBeforeTx, stateAfterStx,
+        stateBeforeIdle, txBytes);
     strobe(SIDLE);
-    return true;
+    return true; // transport accepted; not an RF acknowledgement
 }
 
 uint8_t version() { return g_ver; }
