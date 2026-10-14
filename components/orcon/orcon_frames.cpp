@@ -111,13 +111,15 @@ ramses::Frame make10E0(const Ids& id) {
     return f;
 }
 
-// 1FC9 RF bind offer (self broadcast). Tuples of [idx][code-hi][code-lo][id0..2]
-// (6 bytes each) for each code we will send. idx 0x00 for our HVAC domain.
+// 1FC9 RF bind offer (self broadcast). Offer the Orcon 15RF remote command set:
+// 22F1 = fan mode, 22F3 = timed mode, 10E0 = device information.
+// Sensor broadcasts (31E0 / 1298) are not remote commands and should not be
+// advertised as capabilities in the bind offer.
 ramses::Frame make1FC9_bind(const Ids& id) {
     ramses::Frame f = selfBcast(id, ramses::MsgType::I, 0x1FC9);
     uint32_t r = id.us.raw();
     uint8_t i0=(uint8_t)((r>>16)&0xFF), i1=(uint8_t)((r>>8)&0xFF), i2=(uint8_t)(r&0xFF);
-    const uint16_t codes[] = { 0x22F1, 0x31E0, 0x1298, 0x10E0 };
+    const uint16_t codes[] = { 0x22F1, 0x22F3, 0x10E0 };
     uint8_t n = 0;
     for (uint16_t c : codes) {
         f.payload[n++] = 0x00;                  // domain/index
@@ -125,7 +127,7 @@ ramses::Frame make1FC9_bind(const Ids& id) {
         f.payload[n++] = (uint8_t)(c & 0xFF);
         f.payload[n++] = i0; f.payload[n++] = i1; f.payload[n++] = i2;
     }
-    f.len = n;                                   // 4 codes * 6 = 24 bytes
+    f.len = n;                                   // 3 codes * 6 = 18 bytes
     return f;
 }
 
