@@ -247,7 +247,27 @@ bool onFrame(const ramses::Frame& f) {
         if (!f.has_addr[i]) continue;
         if (f.addr[i].cls == DEV_FAN_CLASS) { learnFan(f.addr[i]); g_state.lastFanMs = millis(); }
     }
-    if (f.has_addr[0] && f.addr[0].cls == DEV_FAN_CLASS) fromFan = true;
+
+    // Pairing fallback: the observed 31D9 fan-state frame came from class 0x1D,
+    // while the generic HRC400 profile expects class 0x20. Treat a valid 31D9
+    // source as the fan only during an explicit pairing window. This is
+    // intentionally narrow; it does not change passive learning or normal
+    // operation. Confirm against the user's physical fan before merging to main.
+    if (g_pairState == PairState::Searching && f.cmd == 0x31D9 &&
+        f.has_addr[0] && f.addr[0].serial != 0) {
+        g_ids.fan = f.addr[0];
+        g_state.fanKnown = true;
+        g_fanSerialFixed = true;
+        g_pairState = PairState::Paired;
+        g_idsDirty = true;
+    }
+
+    if (f.has_addr[0] &&
+        (f.addr[0].cls == DEV_FAN_CLASS ||
+         (g_pairState == PairState::Paired && f.cmd == 0x31D9 &&
+          f.addr[0].serial == g_ids.fan.serial && f.addr[0].cls == g_ids.fan.cls))) {
+        fromFan = true;
+    }
 
     // The unit answered us: an RP / 31D9 / 0001 from the unit shortly after a TX.
     if (fromFan && (millis() - g_state.lastCmdMs < 6000) &&
