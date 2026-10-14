@@ -140,7 +140,7 @@ bool send(const ramses::Frame& f) {
     delayMicroseconds(200);
     const uint8_t stateBeforeIdle = readStatus(0x35);
     const uint8_t txBytes = readStatus(0x3A); // TXBYTES status register
-    OrconSerial.printf("[cc1101] TX diag: cmd=%04X type=%u src=%02X:%06lX dst=%s%02X:%06lX wire=%u uart_bytes=%u MARCSTATE before=%02X after-STX=%02X before-IDLE=%02X TXBYTES=%02X\\n",
+    OrconSerial.printf("[cc1101] TX diag: cmd=%04X type=%u src=%02X:%06lX dst=%s%02X:%06lX wire=%u uart_bytes=%u MARCSTATE before=%02X after-STX=%02X before-IDLE=%02X TXBYTES=%02X\n",
         f.cmd, (unsigned)f.type, f.addr[0].cls, (unsigned long)f.addr[0].serial,
         f.has_addr[1] ? "" : "(none)", f.addr[1].cls, (unsigned long)f.addr[1].serial,
         (unsigned)wn, (unsigned)(preambleLen + wn), stateBeforeTx, stateAfterStx,
