@@ -39,6 +39,12 @@ button:
   - platform: orcon
     name: "Orcon Auto"
   - platform: orcon
+    name: "Orcon Timer 15"
+  - platform: orcon
+    name: "Orcon Timer 30"
+  - platform: orcon
+    name: "Orcon Timer 60"
+  - platform: orcon
     name: "Orcon Boost"
   - platform: orcon
     name: "Orcon Eşleştirmeyi Başlat"
