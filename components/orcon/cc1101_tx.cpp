@@ -165,25 +165,14 @@ static int g_rssi = -127;
 static uint32_t g_uartBytes = 0;
 uint32_t uartBytes() { return g_uartBytes; }
 
-// Diagnostic capture: print complete demodulated wire frames before RAMSES
-// decoding, so frames that fail the logical decoder are still visible.
+// Diagnostic capture: log bytes arriving from the CC1101 demodulated-data UART.
+// Print each newly received chunk, regardless of whether it forms a valid frame.
 #if DEBUG_RX_HEX
-static void logRawWireFrames(const uint8_t* data, size_t len) {
-    static const uint8_t sync[5] = { 0xFF, 0x00, 0x33, 0x55, 0x53 };
-    for (size_t i = 0; i + 6 <= len; ++i) {
-        bool match = true;
-        for (size_t k = 0; k < sizeof(sync); ++k) {
-            if (data[i + k] != sync[k]) { match = false; break; }
-        }
-        if (!match) continue;
-        size_t stop = i + sizeof(sync);
-        while (stop < len && data[stop] != ramses::STOP_WIRE) ++stop;
-        if (stop >= len) continue;
-        OrconSerial.printf("[cc1101] RAW RX wire len=%u :", (unsigned)(stop - i + 1));
-        for (size_t j = i; j <= stop; ++j) OrconSerial.printf("%02X", data[j]);
-        OrconSerial.println();
-        i = stop;
-    }
+static void logRawRxChunk(const uint8_t* data, size_t len) {
+    if (len == 0) return;
+    OrconSerial.printf("[cc1101] RAW RX bytes=%u :", (unsigned)len);
+    for (size_t i = 0; i < len; ++i) OrconSerial.printf("%02X", data[i]);
+    OrconSerial.println();
 }
 #endif
 
@@ -202,15 +191,19 @@ int rssiDbm() {
 }
 
 bool poll(ramses::Frame& out) {
+    uint8_t newBytes[160];
+    size_t newLen = 0;
     while (ccUart.available() && g_rxlen < sizeof(g_rxbuf)) {
-        g_rxbuf[g_rxlen++] = (uint8_t)ccUart.read();
+        const uint8_t b = (uint8_t)ccUart.read();
+        g_rxbuf[g_rxlen++] = b;
         g_uartBytes++;
+        if (newLen < sizeof(newBytes)) newBytes[newLen++] = b;
     }
+#if DEBUG_RX_HEX
+    logRawRxChunk(newBytes, newLen);
+#endif
     if (g_rxlen < 8) return false;
 
-#if DEBUG_RX_HEX
-    logRawWireFrames(g_rxbuf, g_rxlen);
-#endif
     size_t consumed = 0;
     bool ok = ramses::extractWireFrame(g_rxbuf, g_rxlen, &consumed, out);
     if (ok) g_rssi = rssiDbm();
