@@ -30,6 +30,9 @@ void mode1()     { ESP_LOGI(TAG, "Button command: mode 1 / Low"); orcon::setMode
 void mode2()     { ESP_LOGI(TAG, "Button command: mode 2 / Medium"); orcon::setMode(orcon::Mode::Medium); }
 void mode3()     { ESP_LOGI(TAG, "Button command: mode 3 / High"); orcon::setMode(orcon::Mode::High); }
 void modeAuto()  { ESP_LOGI(TAG, "Button command: Auto"); orcon::setMode(orcon::Mode::Auto); }
+void timer15()   { ESP_LOGI(TAG, "Button command: Timer 15 min"); orcon::setTimer(15); }
+void timer30()   { ESP_LOGI(TAG, "Button command: Timer 30 min"); orcon::setTimer(30); }
+void timer60()   { ESP_LOGI(TAG, "Button command: Timer 60 min"); orcon::setTimer(60); }
 void modeBoost() { ESP_LOGI(TAG, "Button command: Boost"); orcon::setMode(orcon::Mode::Boost); }
 void startPairing() { ESP_LOGI(TAG, "Button command: start pairing"); orcon::startPairing(); }
 
