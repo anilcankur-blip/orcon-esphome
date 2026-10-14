@@ -257,6 +257,7 @@ bool onFrame(const ramses::Frame& f) {
         f.has_addr[0] && f.addr[0].serial != 0) {
         g_ids.fan = f.addr[0];
         g_state.fanKnown = true;
+        g_state.lastFanMs = millis();
         g_fanSerialFixed = true;
         g_pairState = PairState::Paired;
         g_idsDirty = true;
