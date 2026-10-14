@@ -45,6 +45,16 @@ button:
   - platform: orcon
     name: "Orcon Timer 60"
   - platform: orcon
+    name: "Orcon Timer Başlat"
+  - platform: orcon
     name: "Orcon Boost"
   - platform: orcon
     name: "Orcon Eşleştirmeyi Başlat"
+
+number:
+  - platform: orcon
+    name: "Orcon Timer Süresi"
+    min_value: 1
+    max_value: 120
+    step: 1
+    initial_value: 15
