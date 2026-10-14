@@ -56,22 +56,30 @@ void OrconPairButton::press_action() {
   }
 
   const std::string &name = this->get_name();
+  ESP_LOGI(TAG, "Button pressed: '%s'", name.c_str());
+
   if (name == "Orcon Eşleştirmeyi Başlat" || name == "Orcon Pairing") {
+    ESP_LOGI(TAG, "Starting pairing");
     orcon::startPairing();
-  } else if (name == "Orcon Away") {
-    modeAway();
-  } else if (name == "Orcon 1") {
-    mode1();
-  } else if (name == "Orcon 2") {
-    mode2();
-  } else if (name == "Orcon 3") {
-    mode3();
-  } else if (name == "Orcon Auto") {
-    modeAuto();
-  } else if (name == "Orcon Boost") {
-    modeBoost();
   } else {
-    ESP_LOGW(TAG, "No command mapped for button name: %s", name.c_str());
+    bool ok = false;
+    if (name == "Orcon Away") {
+      ok = orcon::setMode(orcon::Mode::Away);
+    } else if (name == "Orcon 1") {
+      ok = orcon::setMode(orcon::Mode::Low);
+    } else if (name == "Orcon 2") {
+      ok = orcon::setMode(orcon::Mode::Medium);
+    } else if (name == "Orcon 3") {
+      ok = orcon::setMode(orcon::Mode::High);
+    } else if (name == "Orcon Auto") {
+      ok = orcon::setMode(orcon::Mode::Auto);
+    } else if (name == "Orcon Boost") {
+      ok = orcon::setMode(orcon::Mode::Boost);
+    } else {
+      ESP_LOGW(TAG, "No command mapped for button name: %s", name.c_str());
+      return;
+    }
+    ESP_LOGI(TAG, "Mode command for '%s': radio send %s", name.c_str(), ok ? "accepted" : "failed");
   }
 }
 
