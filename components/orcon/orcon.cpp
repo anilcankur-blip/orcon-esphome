@@ -75,7 +75,8 @@ static bool tx(const ramses::Frame& f) {
     rlog::add('T', f, 0);
     g_state.txCount++;
     fmtFrame(f, g_state.lastTx, sizeof(g_state.lastTx));
-    return radio::sendFrame(f);
+    g_state.lastTxOk = radio::sendFrame(f);
+    return g_state.lastTxOk;
 }
 
 static bool sendMode(Mode m) {
