@@ -53,6 +53,14 @@ static uint8_t readStatus(uint8_t addr) {
     return rx[1];
 }
 
+// Read one CC1101 configuration register (not a status register).
+static uint8_t readConfig(uint8_t addr) {
+    uint8_t tx[2] = { (uint8_t)(addr | 0x80), 0x00 };
+    uint8_t rx[2] = { 0, 0 };
+    if (!spiTransfer(tx, rx, sizeof(tx))) return 0xFF;
+    return rx[1];
+}
+
 bool begin() {
     if (!g_spiReady) {
         spi_bus_config_t buscfg = {};
