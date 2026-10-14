@@ -247,6 +247,7 @@ bool onFrame(const ramses::Frame& f) {
         if (!f.has_addr[i]) continue;
         if (f.addr[i].cls == DEV_FAN_CLASS) { learnFan(f.addr[i]); g_state.lastFanMs = millis(); }
     }
+
     if (f.has_addr[0] && f.addr[0].cls == DEV_FAN_CLASS) fromFan = true;
 
     // The unit answered us: an RP / 31D9 / 0001 from the unit shortly after a TX.

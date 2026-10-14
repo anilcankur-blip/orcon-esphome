@@ -111,21 +111,29 @@ ramses::Frame make10E0(const Ids& id) {
     return f;
 }
 
-// 1FC9 RF bind offer (self broadcast). Tuples of [idx][code-hi][code-lo][id0..2]
-// (6 bytes each) for each code we will send. idx 0x00 for our HVAC domain.
+// 1FC9 RF bind offer (self broadcast). Cross-checked against the binding
+// example in ramses_rf/devices/hvac_remotes.py:
+// 00-22F1, 00-22F3, 67-10E0, 00-1FC9 (four 6-byte tuples = 24 bytes).
+// The 31D9/31DA status codes are advertised by the FAN in its reply, not here.
 ramses::Frame make1FC9_bind(const Ids& id) {
     ramses::Frame f = selfBcast(id, ramses::MsgType::I, 0x1FC9);
     uint32_t r = id.us.raw();
     uint8_t i0=(uint8_t)((r>>16)&0xFF), i1=(uint8_t)((r>>8)&0xFF), i2=(uint8_t)(r&0xFF);
-    const uint16_t codes[] = { 0x22F1, 0x31E0, 0x1298, 0x10E0 };
+    struct BindCode { uint8_t index; uint16_t code; };
+    const BindCode codes[] = {
+        { 0x00, 0x22F1 },
+        { 0x00, 0x22F3 },
+        { 0x67, 0x10E0 },
+        { 0x00, 0x1FC9 },
+    };
     uint8_t n = 0;
-    for (uint16_t c : codes) {
-        f.payload[n++] = 0x00;                  // domain/index
-        f.payload[n++] = (uint8_t)(c >> 8);
-        f.payload[n++] = (uint8_t)(c & 0xFF);
+    for (const BindCode& item : codes) {
+        f.payload[n++] = item.index;
+        f.payload[n++] = (uint8_t)(item.code >> 8);
+        f.payload[n++] = (uint8_t)(item.code & 0xFF);
         f.payload[n++] = i0; f.payload[n++] = i1; f.payload[n++] = i2;
     }
-    f.len = n;                                   // 4 codes * 6 = 24 bytes
+    f.len = n;
     return f;
 }
 
