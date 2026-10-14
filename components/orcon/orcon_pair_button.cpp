@@ -10,13 +10,14 @@ static const char *TAG = "orcon";
 static bool init_attempted = false;
 static bool init_ok = false;
 
-// Each entity name maps directly to its command; YAML needs no mode parameter.
-static void modeAway()  { orcon::setMode(orcon::Mode::Away); }
-static void mode1()     { orcon::setMode(orcon::Mode::Low); }
-static void mode2()     { orcon::setMode(orcon::Mode::Medium); }
-static void mode3()     { orcon::setMode(orcon::Mode::High); }
-static void modeAuto()  { orcon::setMode(orcon::Mode::Auto); }
-static void modeBoost() { orcon::setMode(orcon::Mode::Boost); }
+// Each Home Assistant button is assigned one of these callbacks by button.py.
+void modeAway()  { orcon::setMode(orcon::Mode::Away); }
+void mode1()     { orcon::setMode(orcon::Mode::Low); }
+void mode2()     { orcon::setMode(orcon::Mode::Medium); }
+void mode3()     { orcon::setMode(orcon::Mode::High); }
+void modeAuto()  { orcon::setMode(orcon::Mode::Auto); }
+void modeBoost() { orcon::setMode(orcon::Mode::Boost); }
+void startPairing() { orcon::startPairing(); }
 
 void OrconPairButton::setup() {
   if (!init_attempted) {
@@ -54,33 +55,13 @@ void OrconPairButton::press_action() {
     ESP_LOGE(TAG, "Command ignored because Orcon radio is not initialized");
     return;
   }
-
-  const std::string &name = this->get_name();
-  ESP_LOGI(TAG, "Button pressed: '%s'", name.c_str());
-
-  if (name == "Orcon Eşleştirmeyi Başlat" || name == "Orcon Pairing") {
-    ESP_LOGI(TAG, "Starting pairing");
-    orcon::startPairing();
-  } else {
-    bool ok = false;
-    if (name == "Orcon Away") {
-      ok = orcon::setMode(orcon::Mode::Away);
-    } else if (name == "Orcon 1") {
-      ok = orcon::setMode(orcon::Mode::Low);
-    } else if (name == "Orcon 2") {
-      ok = orcon::setMode(orcon::Mode::Medium);
-    } else if (name == "Orcon 3") {
-      ok = orcon::setMode(orcon::Mode::High);
-    } else if (name == "Orcon Auto") {
-      ok = orcon::setMode(orcon::Mode::Auto);
-    } else if (name == "Orcon Boost") {
-      ok = orcon::setMode(orcon::Mode::Boost);
-    } else {
-      ESP_LOGW(TAG, "No command mapped for button name: %s", name.c_str());
-      return;
-    }
-    ESP_LOGI(TAG, "Mode command for '%s': radio send %s", name.c_str(), ok ? "accepted" : "failed");
+  if (this->action_ == nullptr) {
+    ESP_LOGE(TAG, "No command callback configured for this button");
+    return;
   }
+
+  ESP_LOGI(TAG, "Executing configured Orcon button callback");
+  this->action_();
 }
 
 void OrconPairButton::loop() {
