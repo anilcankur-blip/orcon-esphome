@@ -4,6 +4,7 @@
 #include "orcon_compat.h"
 #include "esp_mac.h"
 #include "esphome/core/log.h"
+#include <stdio.h>
 
 namespace esphome::orcon_esphome {
 
