@@ -6,7 +6,7 @@ esphome:
 esp32:
   variant: esp32
   framework:
-    type: arduino
+    type: esp-idf
 
 logger:
 api:
@@ -21,6 +21,12 @@ external_components:
       type: local
       path: ../components
     components: [orcon]
+
+# Test ESP-IDF + existing Orcon CC1101 component + BLE advertisement proxy.
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: false
 
 button:
   - platform: orcon
