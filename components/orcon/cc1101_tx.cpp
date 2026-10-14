@@ -165,6 +165,28 @@ static int g_rssi = -127;
 static uint32_t g_uartBytes = 0;
 uint32_t uartBytes() { return g_uartBytes; }
 
+// Diagnostic capture: print complete demodulated wire frames before RAMSES
+// decoding, so frames that fail the logical decoder are still visible.
+#if DEBUG_RX_HEX
+static void logRawWireFrames(const uint8_t* data, size_t len) {
+    static const uint8_t sync[5] = { 0x55, 0x55, 0x55, 0x53, 0x53 };
+    for (size_t i = 0; i + 6 <= len; ++i) {
+        bool match = true;
+        for (size_t k = 0; k < sizeof(sync); ++k) {
+            if (data[i + k] != sync[k]) { match = false; break; }
+        }
+        if (!match) continue;
+        size_t stop = i + sizeof(sync);
+        while (stop < len && data[stop] != 0xFF) ++stop;
+        if (stop >= len) continue;
+        OrconSerial.printf("[cc1101] RAW RX wire len=%u :", (unsigned)(stop - i + 1));
+        for (size_t j = i; j <= stop; ++j) OrconSerial.printf("%02X", data[j]);
+        OrconSerial.println();
+        i = stop;
+    }
+}
+#endif
+
 void startRx() {
     strobe(SIDLE);
     strobe(SFRX);
@@ -186,6 +208,9 @@ bool poll(ramses::Frame& out) {
     }
     if (g_rxlen < 8) return false;
 
+#if DEBUG_RX_HEX
+    logRawWireFrames(g_rxbuf, g_rxlen);
+#endif
     size_t consumed = 0;
     bool ok = ramses::extractWireFrame(g_rxbuf, g_rxlen, &consumed, out);
     if (ok) g_rssi = rssiDbm();
