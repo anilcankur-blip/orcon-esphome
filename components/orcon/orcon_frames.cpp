@@ -136,7 +136,8 @@ ramses::Frame make1FC9_bind(const Ids& id) {
     const uint16_t codes[] = { 0x22F1, 0x22F3, 0x10E0, 0x1FC9 };
     uint8_t n = 0;
     for (uint16_t code : codes) {
-        f.payload[n++] = 0x00;
+        // 10E0's tuple prefix is the Orcon OEM code (0x67), not 0x00.
+        f.payload[n++] = (code == 0x10E0) ? 0x67 : 0x00;
         f.payload[n++] = (uint8_t)(code >> 8);
         f.payload[n++] = (uint8_t)(code & 0xFF);
         f.payload[n++] = i0; f.payload[n++] = i1; f.payload[n++] = i2;
