@@ -14,6 +14,15 @@ static uint32_t last_logged_tx = 0;
 static uint32_t last_logged_rx = 0;
 static orcon::PairState last_pair_state = orcon::PairState::Idle;
 
+static void formatAddr(const ramses::Frame &frame, uint8_t index, char *out, size_t cap) {
+  if (index >= 3 || !frame.has_addr[index]) {
+    snprintf(out, cap, "none");
+    return;
+  }
+  snprintf(out, cap, "%02X:%06lX", frame.addr[index].cls,
+           (unsigned long)frame.addr[index].serial);
+}
+
 // Each Home Assistant button is assigned one of these callbacks by button.py.
 void modeAway()  { ESP_LOGI(TAG, "Button command: Away"); orcon::setMode(orcon::Mode::Away); }
 void mode1()     { ESP_LOGI(TAG, "Button command: mode 1 / Low"); orcon::setMode(orcon::Mode::Low); }
@@ -71,6 +80,12 @@ void OrconPairButton::loop() {
   if (!radio_owner_ || !init_ok) return;
   ramses::Frame frame;
   if (radio::poll(frame)) {
+    char a0[20], a1[20], a2[20];
+    formatAddr(frame, 0, a0, sizeof(a0));
+    formatAddr(frame, 1, a1, sizeof(a1));
+    formatAddr(frame, 2, a2, sizeof(a2));
+    ESP_LOGI(TAG, "RF RX ADDR src=%s dst=%s relay=%s cmd=%04X type=%u",
+             a0, a1, a2, frame.cmd, (unsigned)frame.type);
     orcon::onFrame(frame);
   }
 
