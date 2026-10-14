@@ -19,6 +19,7 @@ COMMANDS = {
     "Orcon Timer 15": "timer15",
     "Orcon Timer 30": "timer30",
     "Orcon Timer 60": "timer60",
+    "Orcon Timer Başlat": "timerCustom",
     "Orcon Boost": "modeBoost",
     "Orcon Eşleştirmeyi Başlat": "startPairing",
     "Orcon Pairing": "startPairing",
