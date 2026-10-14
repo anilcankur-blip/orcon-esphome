@@ -58,7 +58,7 @@ static ramses::Frame selfBcast(const Ids& id, ramses::MsgType t, uint16_t code) 
 ramses::Frame make22F1(const Ids& id, Mode m) {
     ramses::Frame f = toFan(id, ramses::MsgType::I, 0x22F1);
     f.len = 3;
-    f.payload[0] = 0x00; f.payload[1] = (uint8_t)m; f.payload[2] = 0x07;
+    f.payload[0] = 0x00; f.payload[1] = (uint8_t)m; f.payload[2] = 0x04;
     return f;
 }
 
