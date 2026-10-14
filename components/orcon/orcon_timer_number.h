@@ -6,6 +6,7 @@ namespace esphome::orcon_esphome {
 
 class OrconTimerNumber : public number::Number, public Component {
  public:
+  void setup() override;
   void control(float value) override;
 };
 
