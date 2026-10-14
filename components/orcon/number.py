@@ -3,6 +3,9 @@ import esphome.config_validation as cv
 from esphome.components import number
 from esphome.const import CONF_MAX_VALUE, CONF_MIN_VALUE, CONF_STEP
 
+# Explicitly load ESPHome core number support for this external number platform.
+AUTO_LOAD = ["number"]
+
 orcon_ns = cg.esphome_ns.namespace("orcon_esphome")
 OrconTimerNumber = orcon_ns.class_("OrconTimerNumber", number.Number, cg.Component)
 
