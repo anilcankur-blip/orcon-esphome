@@ -11,6 +11,9 @@ void mode1();
 void mode2();
 void mode3();
 void modeAuto();
+void timer15();
+void timer30();
+void timer60();
 void modeBoost();
 void startPairing();
 
