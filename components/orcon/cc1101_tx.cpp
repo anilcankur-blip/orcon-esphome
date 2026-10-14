@@ -169,7 +169,7 @@ uint32_t uartBytes() { return g_uartBytes; }
 // decoding, so frames that fail the logical decoder are still visible.
 #if DEBUG_RX_HEX
 static void logRawWireFrames(const uint8_t* data, size_t len) {
-    static const uint8_t sync[5] = { 0x55, 0x55, 0x55, 0x53, 0x53 };
+    static const uint8_t sync[5] = { 0xFF, 0x00, 0x33, 0x55, 0x53 };
     for (size_t i = 0; i + 6 <= len; ++i) {
         bool match = true;
         for (size_t k = 0; k < sizeof(sync); ++k) {
@@ -177,7 +177,7 @@ static void logRawWireFrames(const uint8_t* data, size_t len) {
         }
         if (!match) continue;
         size_t stop = i + sizeof(sync);
-        while (stop < len && data[stop] != 0xFF) ++stop;
+        while (stop < len && data[stop] != ramses::STOP_WIRE) ++stop;
         if (stop >= len) continue;
         OrconSerial.printf("[cc1101] RAW RX wire len=%u :", (unsigned)(stop - i + 1));
         for (size_t j = i; j <= stop; ++j) OrconSerial.printf("%02X", data[j]);
