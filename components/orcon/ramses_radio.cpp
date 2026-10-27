@@ -181,8 +181,11 @@ bool poll(ramses::Frame& out) {
     const uint32_t now = millis();
     if (now - lastDiagMs >= 10000UL) {
         lastDiagMs = now;
-        OrconSerial.printf("[cc1101] uart_rx_bytes=%lu rssi=%d dBm\n",
-                      (unsigned long)cc1101tx::uartBytes(), cc1101tx::rssiDbm());
+        OrconSerial.printf("[cc1101] uart_rx_bytes=%lu sync=%lu frames=%lu rssi=%d dBm\n",
+                      (unsigned long)cc1101tx::uartBytes(),
+                      (unsigned long)cc1101tx::syncMatches(),
+                      (unsigned long)cc1101tx::validFrames(),
+                      cc1101tx::rssiDbm());
     }
 
     bool ok = cc1101tx::poll(out);
