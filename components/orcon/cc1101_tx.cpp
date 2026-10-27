@@ -167,7 +167,7 @@ uint32_t uartBytes() { return g_uartBytes; }
 
 // Diagnostic capture: log bytes arriving from the CC1101 demodulated-data UART.
 // Print each newly received chunk, regardless of whether it forms a valid frame.
-#if DEBUG_RX_HEX
+#if DEBUG_RX_RAW
 static void logRawRxChunk(const uint8_t* data, size_t len) {
     if (len == 0) return;
     OrconSerial.printf("[cc1101] RAW RX bytes=%u :", (unsigned)len);
@@ -199,7 +199,7 @@ bool poll(ramses::Frame& out) {
         g_uartBytes++;
         if (newLen < sizeof(newBytes)) newBytes[newLen++] = b;
     }
-#if DEBUG_RX_HEX
+#if DEBUG_RX_RAW
     logRawRxChunk(newBytes, newLen);
 #endif
     if (g_rxlen < 8) return false;
