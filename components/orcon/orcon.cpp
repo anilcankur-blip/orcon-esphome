@@ -294,7 +294,7 @@ bool onFrame(const ramses::Frame& f) {
             toHex(f.payload, f.len, g_state.raw31DA, sizeof(g_state.raw31DA));
             g_state.raw31DAms = millis();
             if (f.len >= 5)  { uint16_t c = (uint16_t)((p[3] << 8) | p[4]); if (c != 0x7FFF) g_state.co2 = c; }
-            if (f.len >= 6)  { if (p[5] <= 100) g_state.humidity = p[5]; }
+            if (f.len >= 6)  { if (p[5] <= 100) { g_state.humidity = p[5]; g_state.humidityKnown = true; } }
             if (f.len >= 9)  g_state.tempExhaust = temp16(&p[7]);
             if (f.len >= 11) g_state.tempSupply  = temp16(&p[9]);
             if (f.len >= 13) g_state.tempIndoor  = temp16(&p[11]);
@@ -305,7 +305,7 @@ bool onFrame(const ramses::Frame& f) {
             changed = true; break;
         case 0x31E0: if (f.len >= 7) { g_state.demand = p[6] > 100 ? 100 : p[6]; changed = true; } break;
         case 0x12A0:
-            if (f.len >= 2) g_state.humidity   = p[1];
+            if (f.len >= 2 && p[1] <= 100) { g_state.humidity = p[1]; g_state.humidityKnown = true; }
             if (f.len >= 4) g_state.tempIndoor = temp16(&p[2]);
             changed = true; break;
         case 0x1298: if (f.len >= 3) { g_state.co2 = (uint16_t)((p[1] << 8) | p[2]); changed = true; } break;
