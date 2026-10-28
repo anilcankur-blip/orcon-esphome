@@ -323,6 +323,19 @@ bool onFrame(const ramses::Frame& f) {
                 }
             }
             if (f.len >= 18) g_state.bypassOpen  = (p[17] != 0x00 && p[17] != 0xEF && p[17] != 0xFF);
+            if (f.len >= 19 && p[18] != 0xEF && p[18] != 0xFF) {
+                const uint8_t fanMode = p[18] & 0x1F;
+                switch (fanMode) {
+                    case 0x00: case 0x01: case 0x02: case 0x03:
+                    case 0x0B: case 0x0C: case 0x0D:
+                    case 0x15: case 0x16: case 0x17:
+                    case 0x18: case 0x19:
+                        g_state.fanMode31DA = fanMode;
+                        g_state.fanMode31DAKnown = true;
+                        break;
+                    default: break; // Keep the last valid mode for unknown codes.
+                }
+            }
             if (f.len >= 20) g_state.exhaustPct  = (p[19] <= 200) ? p[19] / 2 : g_state.exhaustPct;
             if (f.len >= 21) g_state.supplyPct   = (p[20] <= 200) ? p[20] / 2 : g_state.supplyPct;
             changed = true; break;
