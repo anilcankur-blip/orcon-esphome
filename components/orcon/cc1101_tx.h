@@ -17,4 +17,6 @@ void    startRx();                     // strobe RX, flush the UART/byte buffer
 bool    poll(ramses::Frame& out);      // drain UART, return one frame if found
 int     rssiDbm();                     // current CC1101 RSSI (approx, dBm)
 uint32_t uartBytes();                  // total bytes received on GDO2/UART (diagnostic)
+uint32_t syncMatches();                // SYNC byte sequences observed in the UART stream
+uint32_t validFrames();                // frames accepted by the wire decoder
 }

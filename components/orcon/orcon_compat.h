@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <esphome/core/log.h>
 #include <driver/uart.h>
 #include <esp_err.h>
 #include <esp_timer.h>
@@ -20,8 +21,36 @@ inline void delayMicroseconds(uint32_t us) { esp_rom_delay_us(us); }
 class OrconLogSerial {
  public:
   template <typename... Args>
-  int printf(const char *format, Args... args) { return ::printf(format, args...); }
-  void println() { ::printf("\n"); }
+  int printf(const char *format, Args... args) {
+    char chunk[768];
+    int written = snprintf(chunk, sizeof(chunk), format, args...);
+    if (written <= 0) return written;
+    const size_t count = (size_t)written < sizeof(chunk) ? (size_t)written : sizeof(chunk) - 1;
+    for (size_t i = 0; i < count; ++i) {
+      if (chunk[i] == '\n') {
+        flushLine();
+      } else if (length_ < sizeof(line_) - 1) {
+        line_[length_++] = chunk[i];
+        line_[length_] = '\0';
+      }
+    }
+    return written;
+  }
+
+  void println() { flushLine(); }
+
+ private:
+  void flushLine() {
+    if (length_ > 0) {
+      line_[length_] = '\0';
+      ESP_LOGI("orcon_radio", "%s", line_);
+      length_ = 0;
+      line_[0] = '\0';
+    }
+  }
+
+  char line_[768] = {};
+  size_t length_ = 0;
 };
 static OrconLogSerial OrconSerial;
 

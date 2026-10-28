@@ -15,6 +15,7 @@ struct State {
     float    tempOutdoor    = 0;
     float    tempIndoor     = 0;
     uint8_t  humidity       = 0;
+    bool     humidityKnown  = false;
     uint16_t co2            = 0;
     uint8_t  demand         = 0;
     bool     bypassOpen     = false;

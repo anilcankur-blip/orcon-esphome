@@ -163,11 +163,17 @@ static uint8_t g_rxbuf[320];
 static size_t g_rxlen = 0;
 static int g_rssi = -127;
 static uint32_t g_uartBytes = 0;
+static uint32_t g_syncMatches = 0;
+static uint32_t g_validFrames = 0;
+static uint8_t g_syncWindow[5] = {0};
+static size_t g_syncWindowLen = 0;
 uint32_t uartBytes() { return g_uartBytes; }
+uint32_t syncMatches() { return g_syncMatches; }
+uint32_t validFrames() { return g_validFrames; }
 
 // Diagnostic capture: log bytes arriving from the CC1101 demodulated-data UART.
 // Print each newly received chunk, regardless of whether it forms a valid frame.
-#if DEBUG_RX_HEX
+#if DEBUG_RX_RAW
 static void logRawRxChunk(const uint8_t* data, size_t len) {
     if (len == 0) return;
     OrconSerial.printf("[cc1101] RAW RX bytes=%u :", (unsigned)len);
@@ -197,16 +203,26 @@ bool poll(ramses::Frame& out) {
         const uint8_t b = (uint8_t)ccUart.read();
         g_rxbuf[g_rxlen++] = b;
         g_uartBytes++;
+        if (g_syncWindowLen < sizeof(g_syncWindow)) {
+            g_syncWindow[g_syncWindowLen++] = b;
+        } else {
+            memmove(g_syncWindow, g_syncWindow + 1, sizeof(g_syncWindow) - 1);
+            g_syncWindow[sizeof(g_syncWindow) - 1] = b;
+        }
+        if (g_syncWindowLen == sizeof(g_syncWindow) &&
+            memcmp(g_syncWindow, ramses::SYNC, sizeof(g_syncWindow)) == 0) {
+            g_syncMatches++;
+        }
         if (newLen < sizeof(newBytes)) newBytes[newLen++] = b;
     }
-#if DEBUG_RX_HEX
+#if DEBUG_RX_RAW
     logRawRxChunk(newBytes, newLen);
 #endif
     if (g_rxlen < 8) return false;
 
     size_t consumed = 0;
     bool ok = ramses::extractWireFrame(g_rxbuf, g_rxlen, &consumed, out);
-    if (ok) g_rssi = rssiDbm();
+    if (ok) { g_rssi = rssiDbm(); g_validFrames++; }
     if (consumed > 0 && consumed <= g_rxlen) {
         memmove(g_rxbuf, g_rxbuf + consumed, g_rxlen - consumed);
         g_rxlen -= consumed;
