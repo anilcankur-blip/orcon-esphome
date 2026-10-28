@@ -294,29 +294,10 @@ bool onFrame(const ramses::Frame& f) {
             toHex(f.payload, f.len, g_state.raw31DA, sizeof(g_state.raw31DA));
             g_state.raw31DAms = millis();
             if (f.len >= 5)  { uint16_t c = (uint16_t)((p[3] << 8) | p[4]); if (c != 0x7FFF) g_state.co2 = c; }
-            if (f.len >= 6)  { if (p[5] <= 100) { g_state.humidity = p[5]; g_state.humidityKnown = true; } }
-            if (f.len >= 9) {
-                int16_t raw = (int16_t)((p[7] << 8) | p[8]);
-                if (raw != (int16_t)0x7FFF && raw != (int16_t)0x8000) {
-                    g_state.tempExhaust = temp16(&p[7]); g_state.tempExhaustKnown = true;
-                }
-            }
-            if (f.len >= 11) {
-                int16_t raw = (int16_t)((p[9] << 8) | p[10]);
-                if (raw != (int16_t)0x7FFF && raw != (int16_t)0x8000) {
-                    g_state.tempSupply = temp16(&p[9]); g_state.tempSupplyKnown = true;
-                }
-            }
-            if (f.len >= 13) {
-                int16_t raw = (int16_t)((p[11] << 8) | p[12]);
-                if (raw != (int16_t)0x7FFF && raw != (int16_t)0x8000) {
-                    g_state.tempIndoor = temp16(&p[11]); g_state.tempIndoorKnown = true;
-                }
-            }
-            if (f.len >= 15) {
-                int16_t raw = (int16_t)((p[13] << 8) | p[14]);
-                if (raw != (int16_t)0x7FFF && raw != (int16_t)0x8000) {
-                    g_state.tempOutdoor = temp16(&p[13]); g_state.tempOutdoorKnown = true;
+            if (f.len >= 6) {
+                if (p[5] <= 100) {
+                    g_state.humidity = p[5];
+                    g_state.humidityKnown = true;
                 }
             }
             if (f.len >= 18) g_state.bypassOpen  = (p[17] != 0x00 && p[17] != 0xEF && p[17] != 0xFF);
@@ -325,7 +306,10 @@ bool onFrame(const ramses::Frame& f) {
             changed = true; break;
         case 0x31E0: if (f.len >= 7) { g_state.demand = p[6] > 100 ? 100 : p[6]; changed = true; } break;
         case 0x12A0:
-            if (f.len >= 2 && p[1] <= 100) { g_state.humidity = p[1]; g_state.humidityKnown = true; }
+            if (f.len >= 2 && p[1] <= 100) {
+                g_state.humidity = p[1];
+                g_state.humidityKnown = true;
+            }
             if (f.len >= 4) g_state.tempIndoor = temp16(&p[2]);
             changed = true; break;
         case 0x1298: if (f.len >= 3) { g_state.co2 = (uint16_t)((p[1] << 8) | p[2]); changed = true; } break;
