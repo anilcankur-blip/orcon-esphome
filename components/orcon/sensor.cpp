@@ -22,6 +22,8 @@ void OrconHumiditySensor::loop() {
     case 2: value = state.tempSupply;  known = state.tempSupplyKnown;  break;
     case 3: value = state.tempIndoor;  known = state.tempIndoorKnown;  break;
     case 4: value = state.tempOutdoor; known = state.tempOutdoorKnown; break;
+    case 5: value = state.exhaustPct; known = true; break;
+    case 6: value = state.supplyPct;  known = true; break;
     default: return;
   }
 
