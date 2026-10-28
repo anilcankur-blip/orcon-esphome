@@ -14,6 +14,10 @@ struct State {
     float    tempExhaust    = 0;
     float    tempOutdoor    = 0;
     float    tempIndoor     = 0;
+    bool     tempSupplyKnown  = false;
+    bool     tempExhaustKnown = false;
+    bool     tempOutdoorKnown = false;
+    bool     tempIndoorKnown  = false;
     uint8_t  humidity       = 0;
     bool     humidityKnown  = false;
     uint16_t co2            = 0;
