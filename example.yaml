@@ -24,7 +24,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/anilcankur-blip/orcon-esphome
-      ref: feature/humidity-sensor
+      ref: main
     components: [orcon]
 
 button:
