@@ -1,3 +1,7 @@
+#include "esphome/core/defines.h"
+
+#ifdef USE_TEXT_SENSOR
+
 #include "text_sensor.h"
 #include "orcon.h"
 
@@ -29,3 +33,5 @@ void OrconFanModeTextSensor::loop() {
 }
 
 }  // namespace esphome::orcon_esphome
+
+#endif  // USE_TEXT_SENSOR
