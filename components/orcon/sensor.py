@@ -15,6 +15,8 @@ SENSOR_TYPES = {
     "supply_temperature": (2, "°C", 2),
     "indoor_temperature": (3, "°C", 2),
     "outdoor_temperature": (4, "°C", 2),
+    "exhaust_fan_speed": (5, "%", 0),
+    "supply_fan_speed": (6, "%", 0),
 }
 
 
