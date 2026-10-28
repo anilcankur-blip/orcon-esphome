@@ -61,3 +61,13 @@ number:
 sensor:
   - platform: orcon
     name: "Orcon Nem"
+  - platform: orcon
+    name: "Orcon Egzoz Fan Hızı"
+    type: exhaust_fan_speed
+  - platform: orcon
+    name: "Orcon Besleme Fan Hızı"
+    type: supply_fan_speed
+
+text_sensor:
+  - platform: orcon
+    name: "Orcon Fan Modu"
