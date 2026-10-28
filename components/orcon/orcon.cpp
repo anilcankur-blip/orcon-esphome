@@ -293,6 +293,9 @@ bool onFrame(const ramses::Frame& f) {
             //  [17] bypass pos (00=closed)  [19] exhaust fan  [20] supply fan
             toHex(f.payload, f.len, g_state.raw31DA, sizeof(g_state.raw31DA));
             g_state.raw31DAms = millis();
+            OrconSerial.printf("[orcon] 31DA len=%u raw=%s humidity_byte=%u humidityKnown=%u humidity=%u\n",
+                                f.len, g_state.raw31DA, f.len >= 6 ? p[5] : 255,
+                                g_state.humidityKnown ? 1 : 0, g_state.humidity);
             if (f.len >= 5)  { uint16_t c = (uint16_t)((p[3] << 8) | p[4]); if (c != 0x7FFF) g_state.co2 = c; }
             if (f.len >= 6)  { if (p[5] <= 100) { g_state.humidity = p[5]; g_state.humidityKnown = true; } }
             if (f.len >= 9) {
