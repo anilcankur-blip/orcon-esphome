@@ -322,9 +322,15 @@ bool onFrame(const ramses::Frame& f) {
                     g_state.tempOutdoor = temp16(&p[13]); g_state.tempOutdoorKnown = true;
                 }
             }
-            if (f.len >= 18) g_state.bypassOpen  = (p[17] != 0x00 && p[17] != 0xEF && p[17] != 0xFF);
-            if (f.len >= 20) g_state.exhaustPct  = (p[19] <= 200) ? p[19] / 2 : g_state.exhaustPct;
-            if (f.len >= 21) g_state.supplyPct   = (p[20] <= 200) ? p[20] / 2 : g_state.supplyPct;
+            // Bypass position is scaled 0..200 (0=closed, 200=open).
+            // EF/FF are unavailable/sentinel values; do not turn them into "closed".
+            if (f.len >= 18 && p[17] <= 200) g_state.bypassOpen = (p[17] != 0x00);
+
+            // Fan speed bytes are scaled by 200. Convert to integer percent,
+            // rounding to nearest so a raw value of 0x01 doesn't truncate to 0%.
+            // Values > 200 are sentinels; preserve the last valid reading.
+            if (f.len >= 20 && p[19] <= 200) g_state.exhaustPct = (uint8_t)((p[19] + 1) / 2);
+            if (f.len >= 21 && p[20] <= 200) g_state.supplyPct  = (uint8_t)((p[20] + 1) / 2);
             changed = true; break;
         case 0x31E0: if (f.len >= 7) { g_state.demand = p[6] > 100 ? 100 : p[6]; changed = true; } break;
         case 0x12A0:
