@@ -8,6 +8,8 @@ namespace orcon {
 
 struct State {
     Mode     mode           = Mode::Unknown; // FAN-reported (31D9) only
+    uint8_t  fanMode31DA    = 0xFF; // mode reported in 31DA; raw lower-five-bit code
+    bool     fanMode31DAKnown = false;
     uint8_t  supplyPct      = 0;
     uint8_t  exhaustPct     = 0;
     float    tempSupply     = 0;
