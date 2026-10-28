@@ -336,8 +336,8 @@ bool onFrame(const ramses::Frame& f) {
                     default: break; // Keep the last valid mode for unknown codes.
                 }
             }
-            if (f.len >= 20) g_state.exhaustPct  = (p[19] <= 200) ? p[19] / 2 : g_state.exhaustPct;
-            if (f.len >= 21) g_state.supplyPct   = (p[20] <= 200) ? p[20] / 2 : g_state.supplyPct;
+            if (f.len >= 20 && p[19] <= 200) { g_state.exhaustPct = p[19] / 2; g_state.exhaustPctKnown = true; }
+            if (f.len >= 21 && p[20] <= 200) { g_state.supplyPct = p[20] / 2; g_state.supplyPctKnown = true; }
             changed = true; break;
         case 0x31E0: if (f.len >= 7) { g_state.demand = p[6] > 100 ? 100 : p[6]; changed = true; } break;
         case 0x12A0:
