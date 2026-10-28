@@ -1,5 +1,9 @@
 #pragma once
 
+#include "esphome/core/defines.h"
+
+#ifdef USE_TEXT_SENSOR
+
 #include <stdint.h>
 
 #include "esphome/components/text_sensor/text_sensor.h"
@@ -16,3 +20,5 @@ class OrconFanModeTextSensor : public text_sensor::TextSensor, public Component 
 };
 
 }  // namespace esphome::orcon_esphome
+
+#endif  // USE_TEXT_SENSOR
