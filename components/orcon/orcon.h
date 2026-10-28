@@ -12,6 +12,8 @@ struct State {
     bool     fanMode31DAKnown = false;
     uint8_t  supplyPct      = 0;
     uint8_t  exhaustPct     = 0;
+    bool     supplyPctKnown = false;
+    bool     exhaustPctKnown = false;
     float    tempSupply     = 0;
     float    tempExhaust    = 0;
     float    tempOutdoor    = 0;
